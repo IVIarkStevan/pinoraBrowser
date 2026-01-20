@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="#1a1a1a" stroke="#D4AF37" stroke-width="4"/>
+  
+  <!-- Inner gold circle -->
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#D4AF37" stroke-width="2"/>
+  
+  <!-- Decorative border pattern (shield-like) -->
+  <defs>
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#DAA520;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B8860B;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer decorative circle (like laurel wreath suggestion) -->
+  <circle cx="128" cy="128" r="105" fill="none" stroke="url(#goldGradient)" stroke-width="3" opacity="0.8"/>
+  
+  <!-- Corner stars (like in the emblem) -->
+  <g fill="#FFD700">
+    <!-- Top star -->
+    <polygon points="128,25 132,35 143,35 135,42 139,52 128,45 117,52 121,42 113,35 124,35"/>
+    <!-- Top left star -->
+    <polygon points="65,55 68,64 79,64 70,70 73,80 62,73 51,80 54,70 46,64 57,64"/>
+    <!-- Top right star -->
+    <polygon points="191,55 194,64 205,64 196,70 199,80 188,73 177,80 180,70 172,64 183,64"/>
+  </g>
+  
+  <!-- Main "P" Letter in Gold -->
+  <text x="128" y="155" font-family="Georgia, serif" font-size="120" font-weight="bold" 
+        fill="url(#goldGradient)" text-anchor="middle" dominant-baseline="central"
+        letter-spacing="2">P</text>
+  
+  <!-- Inner shadow effect for depth -->
+  <circle cx="128" cy="128" r="100" fill="none" stroke="#8B7500" stroke-width="1" opacity="0.5"/>
+  
+  <!-- Subtle shine effect -->
+  <ellipse cx="100" cy="80" rx="25" ry="30" fill="#FFFF99" opacity="0.15"/>
+  
+  <!-- Bottom decorative text arc (subtle) -->
+  <text x="128" y="230" font-family="Arial, sans-serif" font-size="12" font-weight="bold"
+        fill="#D4AF37" text-anchor="middle" opacity="0.8">PINORA</text>
+</svg>

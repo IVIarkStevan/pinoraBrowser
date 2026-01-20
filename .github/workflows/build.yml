@@ -1,0 +1,38 @@
+name: Build Pinora Browser
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        java-version: ['17', '21']
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Java ${{ matrix.java-version }}
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Build with Maven
+      run: mvn clean package
+
+    - name: Build Windows EXE (Windows only)
+      if: runner.os == 'Windows'
+      run: mvn clean package -P windows
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: pinora-browser-${{ matrix.os }}-java${{ matrix.java-version }}
+        path: target/
