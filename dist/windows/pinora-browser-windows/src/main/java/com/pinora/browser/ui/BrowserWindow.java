@@ -3,8 +3,6 @@ package com.pinora.browser.ui;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -59,9 +57,6 @@ public class BrowserWindow {
         
         Scene scene = new Scene(root, 1200, 800);
         
-        // Add keyboard shortcut handler
-        scene.setOnKeyPressed(this::handleKeyboardShortcuts);
-        
         primaryStage.setTitle("Pinora Browser");
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -75,14 +70,12 @@ public class BrowserWindow {
         
         // File Menu
         Menu fileMenu = new Menu("File");
-        MenuItem newTab = new MenuItem("New Tab (Ctrl+T)");
+        MenuItem newTab = new MenuItem("New Tab");
         newTab.setOnAction(e -> addNewTab());
         MenuItem newWindow = new MenuItem("New Window");
-        MenuItem closeTab = new MenuItem("Close Tab (Ctrl+W)");
-        closeTab.setOnAction(e -> closeCurrentTab());
-        MenuItem exit = new MenuItem("Exit (Ctrl+Q)");
-        exit.setOnAction(e -> stage.close());
-        fileMenu.getItems().addAll(newTab, newWindow, new SeparatorMenuItem(), closeTab, new SeparatorMenuItem(), exit);
+        MenuItem exit = new MenuItem("Exit");
+        exit.setOnAction(e -> System.exit(0));
+        fileMenu.getItems().addAll(newTab, newWindow, new SeparatorMenuItem(), exit);
         
         // Edit Menu
         Menu editMenu = new Menu("Edit");
@@ -279,36 +272,5 @@ public class BrowserWindow {
             "© 2026 Pinora Browser Team"
         );
         alert.showAndWait();
-    }
-    
-    private void handleKeyboardShortcuts(KeyEvent event) {
-        if (event.isControlDown()) {
-            if (event.getCode() == KeyCode.T) {
-                // Ctrl+T: New Tab
-                addNewTab();
-                event.consume();
-            } else if (event.getCode() == KeyCode.W) {
-                // Ctrl+W: Close Tab
-                closeCurrentTab();
-                event.consume();
-            } else if (event.getCode() == KeyCode.Q) {
-                // Ctrl+Q: Quit Application
-                stage.close();
-                event.consume();
-            }
-        }
-    }
-    
-    private void closeCurrentTab() {
-        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
-        if (selectedTab != null) {
-            tabPane.getTabs().remove(selectedTab);
-            logger.info("Tab closed");
-            
-            // Close application if no tabs left
-            if (tabPane.getTabs().isEmpty()) {
-                stage.close();
-            }
-        }
     }
 }
