@@ -17,7 +17,7 @@ if %errorlevel% neq 0 (
 REM Check if Java is installed
 where java >nul 2>nul
 if %errorlevel% neq 0 (
-    echo Java is not installed. Please install Java 17 or higher.
+    echo Java is not installed. Please install Java 21 or higher.
     exit /b 1
 )
 
