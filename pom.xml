@@ -18,7 +18,8 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <javafx.version>21</javafx.version>
-        <javafx.maven.plugin.version>0.0.14</javafx.maven.plugin.version>
+        <!-- Fallback to a commonly available javafx-maven-plugin version if the configured one is unavailable -->
+        <javafx.maven.plugin.version>0.0.12</javafx.maven.plugin.version>
     </properties>
 
     <dependencies>
@@ -72,6 +73,15 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-maven-plugin</artifactId>
+                    <version>0.0.12</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <!-- Java Compiler Plugin -->
             <plugin>
