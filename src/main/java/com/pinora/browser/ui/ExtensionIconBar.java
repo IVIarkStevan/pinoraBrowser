@@ -21,8 +21,8 @@ public class ExtensionIconBar extends HBox {
     public ExtensionIconBar(WebExtensionLoader extensionLoader) {
         this.extensionLoader = extensionLoader;
         setSpacing(4);
-        setStyle("-fx-padding: 4; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;");
-        setAlignment(Pos.CENTER_LEFT);
+        setStyle("-fx-padding: 0;");
+        setAlignment(Pos.CENTER_RIGHT);
         
         if (extensionLoader != null) {
             loadExtensionIcons();
