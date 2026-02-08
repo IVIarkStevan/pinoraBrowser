@@ -54,6 +54,62 @@ mvn clean package
 mvn clean javafx:run
 ```
 
+## Download & Install
+
+You can install Pinora Browser from GitHub Releases (recommended) or build and run it locally.
+
+Important: this project targets Java 21 (LTS). Install a Java 21 JDK (Adoptium/Eclipse Temurin, Azul, or your distro's packages) before running the app.
+
+Linux
+ - Download the latest release archive from the Releases page, extract it, and run the provided launcher:
+
+```bash
+# Example (replace URL/version with the release you want):
+wget https://github.com/<owner>/<repo>/releases/download/vX.Y.Z/pinora-browser-X.Y.Z-linux.tar.gz
+tar xzf pinora-browser-X.Y.Z-linux.tar.gz
+cd pinora-browser-X.Y.Z
+./pinora-browser.sh
+```
+
+ - Alternatively, run the packed JAR directly (requires Java 21):
+
+```bash
+# From a release or from target/ after building
+java -jar pinora-browser-<version>.jar
+```
+
+Windows
+ - Download the Windows installer or ZIP from the Releases page and run the executable or batch launcher:
+
+```powershell
+# Example (replace URL/version with the release you want):
+Invoke-WebRequest -Uri "https://github.com/<owner>/<repo>/releases/download/vX.Y.Z/pinora-browser-X.Y.Z-windows.zip" -OutFile "pinora-browser.zip"
+Expand-Archive .\pinora-browser.zip -DestinationPath .\pinora-browser
+Set-Location .\pinora-browser
+.\PinoraBrowser.bat
+```
+
+ - Or run the JAR directly (requires Java 21):
+
+```powershell
+java -jar pinora-browser-<version>.jar
+```
+
+Build from source (both platforms)
+ - Clone and build with Maven; the produced artifacts are placed in `target/`:
+
+```bash
+git clone <repo-url>
+cd pinora-browser
+mvn clean package
+# On Linux: run ./pinora-browser.sh or java -jar target/pinora-browser-<version>.jar
+# On Windows: run PinoraBrowser.bat or java -jar target/pinora-browser-<version>.jar
+```
+
+Notes
+ - Replace `<owner>/<repo>` and version placeholders with the repository owner, repo name and release tag used on your GitHub Releases page.
+ - If you plan to distribute installers, upload installer artifacts to GitHub Releases so users can download them directly.
+
 ## Technology Stack
 
 - **Language**: Java 17+
