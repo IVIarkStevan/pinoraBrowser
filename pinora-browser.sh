@@ -71,8 +71,8 @@ CANDIDATES=("$HOME/.m2/repository/org/openjfx" "/usr/share/openjfx/lib" "/usr/li
 for base in "${CANDIDATES[@]}"; do
      if [ -d "$base" ]; then
           while IFS= read -r jar; do
-               MODULE_PATHS="$MODULE_PATHS:$jar"
-          done < <(find "$base" -name "javafx-*.jar" ! -name "*sources*" 2>/dev/null | sort)
+                    MODULE_PATHS="$MODULE_PATHS:$jar"
+               done < <(find "$base" -name "javafx-*.jar" ! -name "*sources*" ! -name "*javadoc*" ! -name "*docs*" 2>/dev/null | sort)
      fi
 done
 MODULE_PATHS="${MODULE_PATHS#:}"
