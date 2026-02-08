@@ -26,17 +26,19 @@ public class ContentScriptInjector {
             String shimCode = loadResource("/js/browser-api-shim.js");
             if (shimCode != null) {
                 engine.executeScript(shimCode);
-                logger.debug("Injected browser API shim");
+                logger.info("Injected browser API shim from file");
             } else {
                 logger.warn("Could not load browser-api-shim.js, trying inline shim");
                 // Fallback: inline minimal shim
                 engine.executeScript(getInlineShim());
+                logger.info("Injected inline browser API shim");
             }
         } catch (Exception e) {
             logger.warn("Failed to inject browser API shim: {}", e.getMessage());
             try {
                 // Fallback to inline shim if file loading fails
                 engine.executeScript(getInlineShim());
+                logger.info("Injected inline browser API shim (fallback)");
             } catch (Exception e2) {
                 logger.warn("Failed to inject inline shim: {}", e2.getMessage());
             }

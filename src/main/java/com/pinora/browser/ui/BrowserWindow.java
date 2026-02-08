@@ -337,7 +337,8 @@ public class BrowserWindow {
                         }
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                logger.warn("Error injecting content scripts: {}", e.getMessage());
             }
         });
         // Update navigation buttons when history changes
