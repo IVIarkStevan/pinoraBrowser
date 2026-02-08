@@ -191,6 +191,10 @@ public class BrowserWindow {
         // Toolbar
         mainContent.getChildren().add(createToolbar());
         
+        // Extension Icon Bar
+        ExtensionIconBar extensionBar = new ExtensionIconBar(webExtensionLoader);
+        mainContent.getChildren().add(extensionBar);
+        
         // Tab Pane
         tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
