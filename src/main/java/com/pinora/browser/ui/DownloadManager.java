@@ -19,6 +19,7 @@ public class DownloadManager {
     
     private ListView<DownloadItem> downloadList;
     private Stage stage;
+    private VBox view;
     
     public void show(Stage owner) {
         if (stage == null) {
@@ -27,37 +28,48 @@ public class DownloadManager {
             stage.setWidth(700);
             stage.setHeight(400);
             stage.initOwner(owner);
-            
-            VBox root = new VBox(10);
-            root.setPadding(new Insets(10));
-            
-            Label titleLabel = new Label("Downloads");
-            titleLabel.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
-            
-            downloadList = new ListView<>();
-            downloadList.setStyle("-fx-control-inner-background: #f5f5f5;");
-            
-            HBox buttonBox = new HBox(10);
-            buttonBox.setStyle("-fx-alignment: center-right;");
-            Button clearButton = new Button("Clear List");
-            Button closeButton = new Button("Close");
-            closeButton.setOnAction(e -> stage.close());
-            buttonBox.getChildren().addAll(clearButton, closeButton);
-            
-            root.getChildren().addAll(titleLabel, downloadList, buttonBox);
-            VBox.setVgrow(downloadList, javafx.scene.layout.Priority.ALWAYS);
-            
-            Scene scene = new Scene(root);
-            stage.setScene(scene);
+            stage.setScene(new Scene(getView()));
         }
-        
         stage.show();
     }
     
     public void addDownload(String filename, long size) {
+        if (downloadList == null) ensureView();
         DownloadItem item = new DownloadItem(filename, size);
         downloadList.getItems().add(item);
         logger.info("Download added: {}", filename);
+    }
+
+    /**
+     * Return an embeddable view for use in a Tab or other container.
+     */
+    public VBox getView() {
+        if (view == null) ensureView();
+        return view;
+    }
+
+    private void ensureView() {
+        view = new VBox(10);
+        view.setPadding(new Insets(10));
+
+        Label titleLabel = new Label("Downloads");
+        titleLabel.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
+
+        downloadList = new ListView<>();
+        downloadList.setStyle("-fx-control-inner-background: #f5f5f5;");
+
+        HBox buttonBox = new HBox(10);
+        buttonBox.setStyle("-fx-alignment: center-right;");
+        Button clearButton = new Button("Clear List");
+        clearButton.setOnAction(e -> downloadList.getItems().clear());
+        Button closeButton = new Button("Close");
+        closeButton.setOnAction(e -> {
+            if (stage != null) stage.close();
+        });
+        buttonBox.getChildren().addAll(clearButton, closeButton);
+
+        view.getChildren().addAll(titleLabel, downloadList, buttonBox);
+        VBox.setVgrow(downloadList, javafx.scene.layout.Priority.ALWAYS);
     }
     
     private static class DownloadItem {

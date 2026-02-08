@@ -35,6 +35,7 @@ public class BrowserWindow {
     private Button backButton;
     private Button forwardButton;
     private com.pinora.browser.extensions.webext.WebExtensionLoader webExtensionLoader;
+    private DownloadManager downloadManager = new DownloadManager();
     
     public BrowserWindow() {
         this.browserEngine = new BrowserEngine();
@@ -119,7 +120,11 @@ public class BrowserWindow {
         MenuItem zoomIn = new MenuItem("Zoom In (Ctrl++)");
         MenuItem zoomOut = new MenuItem("Zoom Out (Ctrl+-)");
         MenuItem resetZoom = new MenuItem("Reset Zoom (Ctrl+0)");
+        MenuItem showDownloads = new MenuItem("Downloads");
+        showDownloads.setOnAction(e -> openDownloadsTab());
         viewMenu.getItems().addAll(zoomIn, zoomOut, new SeparatorMenuItem(), resetZoom);
+        viewMenu.getItems().add(new SeparatorMenuItem());
+        viewMenu.getItems().add(showDownloads);
         
         // History Menu
         Menu historyMenu = new Menu("History");
@@ -308,6 +313,22 @@ public class BrowserWindow {
         updateNavigationButtons();
         
         logger.info("New tab added");
+    }
+
+    private void openDownloadsTab() {
+        // Check if downloads tab already exists
+        for (Tab t : tabPane.getTabs()) {
+            if ("Downloads".equals(t.getText())) {
+                tabPane.getSelectionModel().select(t);
+                return;
+            }
+        }
+
+        Tab dtab = new Tab("Downloads");
+        dtab.setClosable(true);
+        dtab.setContent(downloadManager.getView());
+        tabPane.getTabs().add(dtab);
+        tabPane.getSelectionModel().select(dtab);
     }
     
     private void navigateToAddress() {
