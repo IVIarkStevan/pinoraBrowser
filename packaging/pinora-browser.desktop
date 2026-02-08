@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Pinora Browser
+Comment=Pinora Browser — lightweight web browser
+Exec=__EXEC__ %u
+Icon=pinora-browser
+Terminal=false
+Categories=Network;WebBrowser;Utility;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
