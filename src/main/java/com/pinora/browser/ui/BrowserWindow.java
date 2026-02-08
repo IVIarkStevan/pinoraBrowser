@@ -191,10 +191,6 @@ public class BrowserWindow {
         // Toolbar
         mainContent.getChildren().add(createToolbar());
         
-        // Extension Icon Bar
-        ExtensionIconBar extensionBar = new ExtensionIconBar(webExtensionLoader);
-        mainContent.getChildren().add(extensionBar);
-        
         // Tab Pane
         tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
@@ -247,8 +243,12 @@ public class BrowserWindow {
         addressBar.setStyle("-fx-font-size: 12; -fx-padding: 5;");
         addressBar.setOnAction(e -> navigateToAddress());
         
+        // Extension Icon Bar
+        ExtensionIconBar extensionBar = new ExtensionIconBar(webExtensionLoader);
+        extensionBar.setStyle("-fx-padding: 0; -fx-border-width: 0;");
+        
         toolbar.getChildren().addAll(
-            backButton, forwardButton, refreshButton, homeButton, addressBar
+            backButton, forwardButton, refreshButton, homeButton, addressBar, extensionBar
         );
         
         HBox.setHgrow(addressBar, javafx.scene.layout.Priority.ALWAYS);
