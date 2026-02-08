@@ -1,0 +1,39 @@
+/* Simple dark theme for Pinora Browser */
+.root {
+  -fx-base: #2b2b2b;
+  -fx-background: #2b2b2b;
+  -fx-control-inner-background: #2b2b2b;
+  -fx-text-fill: #e6e6e6;
+}
+
+.label, .text, .text-field, .text-area, .button, .menu {
+  -fx-text-fill: #e6e6e6;
+}
+
+.text-field {
+  -fx-background-color: rgba(255,255,255,0.04), linear-gradient(#3a3a3a, #2b2b2b);
+  -fx-prompt-text-fill: #999999;
+}
+
+.tab-pane .tab-header-background {
+  -fx-background-color: transparent;
+}
+
+.tab-pane .tab-label {
+  -fx-text-fill: #e6e6e6;
+}
+
+.context-menu, .menu, .menu-item {
+  -fx-background-color: #2b2b2b;
+  -fx-text-fill: #e6e6e6;
+}
+
+.table-view, .list-view, .tree-view {
+  -fx-background-color: #242424;
+  -fx-control-inner-background: #242424;
+  -fx-cell-hover-color: #333333;
+}
+
+.progress-bar .bar {
+  -fx-background-color: linear-gradient(#6a9bd8, #3b7fc1);
+}
