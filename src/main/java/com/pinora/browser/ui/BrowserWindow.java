@@ -32,6 +32,9 @@ public class BrowserWindow {
     private TextField addressBar;
     private BrowserEngine browserEngine;
     private ExtensionManager extensionManager;
+    private Button backButton;
+    private Button forwardButton;
+    private com.pinora.browser.extensions.webext.WebExtensionLoader webExtensionLoader;
     
     public BrowserWindow() {
         this.browserEngine = new BrowserEngine();
@@ -77,6 +80,13 @@ public class BrowserWindow {
         // Load extensions after the UI is visible
         try {
             extensionManager.loadExtensions(this);
+            // Load WebExtensions (manifest-based) as well
+            try {
+                webExtensionLoader = new com.pinora.browser.extensions.webext.WebExtensionLoader();
+                webExtensionLoader.loadAll();
+            } catch (Exception ex) {
+                logger.warn("Failed to load WebExtensions: {}", ex.getMessage());
+            }
         } catch (Exception e) {
             logger.warn("Failed to load extensions: {}", e.getMessage());
         }
@@ -165,14 +175,18 @@ public class BrowserWindow {
         toolbar.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;");
         
         // Back Button
-        Button backButton = new Button("←");
+        backButton = new Button("←");
         backButton.setPrefWidth(40);
         backButton.setStyle("-fx-font-size: 14;");
+        backButton.setDisable(true);
+        backButton.setOnAction(e -> navigateBack());
         
         // Forward Button
-        Button forwardButton = new Button("→");
+        forwardButton = new Button("→");
         forwardButton.setPrefWidth(40);
         forwardButton.setStyle("-fx-font-size: 14;");
+        forwardButton.setDisable(true);
+        forwardButton.setOnAction(e -> navigateForward());
         
         // Refresh Button
         Button refreshButton = new Button("⟳");
@@ -243,6 +257,38 @@ public class BrowserWindow {
                 }
             }
         });
+        // After page load succeeded, inject content scripts from webextensions
+        engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            try {
+                if (newState == javafx.concurrent.Worker.State.SUCCEEDED && webExtensionLoader != null) {
+                    String url = engine.getLocation();
+                    for (com.pinora.browser.extensions.webext.WebExtensionContext ctx : webExtensionLoader.getAllExtensions()) {
+                        com.pinora.browser.extensions.webext.WebExtensionManifest manifest = ctx.getManifest();
+                        if (manifest.getContentScripts() != null && !manifest.getContentScripts().isEmpty()) {
+                            com.pinora.browser.extensions.webext.ContentScriptInjector.injectScripts(webView, url, manifest.getContentScripts(), ctx);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+        // Update navigation buttons when history changes
+        try {
+            engine.getHistory().currentIndexProperty().addListener((obs, oldIdx, newIdx) -> {
+                updateNavigationButtons();
+                try {
+                    int idx = newIdx.intValue();
+                    if (idx >= 0 && idx < engine.getHistory().getEntries().size()) {
+                        String urlFromHistory = engine.getHistory().getEntries().get(idx).getUrl();
+                        if (urlFromHistory != null && !urlFromHistory.isEmpty()) {
+                            addressBar.setText(urlFromHistory);
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            });
+        } catch (Exception ignored) {
+        }
         
         // Update address bar when tab is selected
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
@@ -251,12 +297,15 @@ public class BrowserWindow {
                 if (location != null && !location.isEmpty()) {
                     addressBar.setText(location);
                 }
+                updateNavigationButtons();
             }
         });
         
         tab.setContent(webView);
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().selectLast();
+        // Ensure navigation buttons reflect the newly selected tab
+        updateNavigationButtons();
         
         logger.info("New tab added");
     }
@@ -277,7 +326,74 @@ public class BrowserWindow {
                 
                 engine.load(url);
                 logger.info("Navigating to: {}", url);
+                // update nav buttons after navigation starts
+                updateNavigationButtons();
             }
+        }
+    }
+
+    private void navigateBack() {
+        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab == null) return;
+        WebView webView = (WebView) selectedTab.getContent();
+        WebEngine engine = webView.getEngine();
+        try {
+            javafx.scene.web.WebHistory history = engine.getHistory();
+            int idx = history.getCurrentIndex();
+            if (idx > 0) {
+                history.go(-1);
+                javafx.application.Platform.runLater(() -> updateNavigationButtons());
+                return;
+            }
+            // Fallback to JS history if WebHistory didn't move
+            engine.executeScript("history.back()");
+        } catch (Exception e) {
+            logger.warn("Back navigation failed: {}", e.getMessage());
+        } finally {
+            javafx.application.Platform.runLater(() -> updateNavigationButtons());
+        }
+    }
+
+    private void navigateForward() {
+        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab == null) return;
+        WebView webView = (WebView) selectedTab.getContent();
+        WebEngine engine = webView.getEngine();
+        try {
+            javafx.scene.web.WebHistory history = engine.getHistory();
+            int idx = history.getCurrentIndex();
+            if (idx < history.getEntries().size() - 1) {
+                history.go(1);
+                javafx.application.Platform.runLater(() -> updateNavigationButtons());
+                return;
+            }
+            // Fallback to JS history if WebHistory didn't move
+            engine.executeScript("history.forward()");
+        } catch (Exception e) {
+            logger.warn("Forward navigation failed: {}", e.getMessage());
+        } finally {
+            javafx.application.Platform.runLater(() -> updateNavigationButtons());
+        }
+    }
+
+    private void updateNavigationButtons() {
+        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab == null) {
+            if (backButton != null) backButton.setDisable(true);
+            if (forwardButton != null) forwardButton.setDisable(true);
+            return;
+        }
+        try {
+            WebView webView = (WebView) selectedTab.getContent();
+            WebEngine engine = webView.getEngine();
+            javafx.scene.web.WebHistory history = engine.getHistory();
+            int idx = history.getCurrentIndex();
+            int size = history.getEntries().size();
+            if (backButton != null) backButton.setDisable(idx <= 0);
+            if (forwardButton != null) forwardButton.setDisable(idx >= size - 1);
+        } catch (Exception e) {
+            if (backButton != null) backButton.setDisable(true);
+            if (forwardButton != null) forwardButton.setDisable(true);
         }
     }
     

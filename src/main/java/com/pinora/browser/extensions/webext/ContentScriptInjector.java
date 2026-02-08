@@ -3,6 +3,7 @@ package com.pinora.browser.extensions.webext;
 import javafx.scene.web.WebView;
 import javafx.scene.web.WebEngine;
 import netscape.javascript.JSObject;
+import com.pinora.browser.extensions.webext.WebExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
@@ -22,6 +23,14 @@ public class ContentScriptInjector {
         for (WebExtensionManifest.ContentScript cs : contentScripts) {
             if (matchesUrl(url, cs.matches)) {
                 injectContentScript(webView, cs);
+            }
+        }
+    }
+
+    public static void injectScripts(WebView webView, String url, List<WebExtensionManifest.ContentScript> contentScripts, WebExtensionContext ctx) {
+        for (WebExtensionManifest.ContentScript cs : contentScripts) {
+            if (matchesUrl(url, cs.matches)) {
+                injectContentScript(webView, cs, ctx);
             }
         }
     }
@@ -81,6 +90,40 @@ public class ContentScriptInjector {
                 }
             } catch (Exception e) {
                 logger.warn("Failed to inject JS {}: {}", jsFile, e.getMessage());
+            }
+        }
+    }
+
+    private static void injectContentScript(WebView webView, WebExtensionManifest.ContentScript cs, WebExtensionContext ctx) {
+        WebEngine engine = webView.getEngine();
+
+        // Inject CSS files from extension
+        for (String cssFile : cs.cssFiles) {
+            try {
+                String css = ctx.loadResource(cssFile);
+                if (css == null) css = loadResource(cssFile);
+                if (css != null) {
+                    String jsCode = "var style = document.createElement('style'); style.innerHTML = " 
+                        + escapeJSString(css) + "; document.head.appendChild(style);";
+                    engine.executeScript(jsCode);
+                    logger.info("Injected extension CSS: {}", cssFile);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to inject extension CSS {}: {}", cssFile, e.getMessage());
+            }
+        }
+
+        // Inject JS files from extension
+        for (String jsFile : cs.jsFiles) {
+            try {
+                String js = ctx.loadResource(jsFile);
+                if (js == null) js = loadResource(jsFile);
+                if (js != null) {
+                    engine.executeScript(js);
+                    logger.info("Injected extension JS: {}", jsFile);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to inject extension JS {}: {}", jsFile, e.getMessage());
             }
         }
     }
