@@ -4,10 +4,12 @@ import com.pinora.browser.extensions.webext.api.TabsAPI;
 import com.pinora.browser.extensions.webext.api.StorageAPI;
 import com.pinora.browser.extensions.webext.api.MessagingAPI;
 import com.pinora.browser.extensions.webext.api.RuntimeAPI;
+import javafx.scene.image.Image;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.util.UUID;
 
@@ -63,6 +65,22 @@ public class WebExtensionContext {
             }
         } catch (Exception e) {
             logger.warn("Could not load resource {}: {}", path, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Load an image from the extension directory.
+     */
+    public Image loadImage(String path) {
+        try {
+            File file = new File(extensionDir, path);
+            if (file.exists() && file.isFile()) {
+                byte[] imageData = Files.readAllBytes(file.toPath());
+                return new Image(new ByteArrayInputStream(imageData));
+            }
+        } catch (Exception e) {
+            logger.warn("Could not load image {}: {}", path, e.getMessage());
         }
         return null;
     }
