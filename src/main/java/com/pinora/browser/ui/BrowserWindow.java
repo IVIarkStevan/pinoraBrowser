@@ -14,6 +14,9 @@ import javafx.scene.web.WebView;
 import javafx.scene.image.Image;
 import com.pinora.browser.core.BrowserEngine;
 import com.pinora.browser.util.URLUtil;
+import com.pinora.browser.extensions.ExtensionManager;
+import com.pinora.browser.extensions.webext.installer.WebExtensionInstaller;
+import com.pinora.browser.ui.WebExtensionsManagerDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,9 +31,15 @@ public class BrowserWindow {
     private TabPane tabPane;
     private TextField addressBar;
     private BrowserEngine browserEngine;
+    private ExtensionManager extensionManager;
     
     public BrowserWindow() {
         this.browserEngine = new BrowserEngine();
+        this.extensionManager = new ExtensionManager();
+    }
+
+    public ExtensionManager getExtensionManager() {
+        return extensionManager;
     }
     
     public void show(Stage primaryStage) {
@@ -65,6 +74,12 @@ public class BrowserWindow {
         primaryStage.setTitle("Pinora Browser");
         primaryStage.setScene(scene);
         primaryStage.show();
+        // Load extensions after the UI is visible
+        try {
+            extensionManager.loadExtensions(this);
+        } catch (Exception e) {
+            logger.warn("Failed to load extensions: {}", e.getMessage());
+        }
         
         logger.info("Browser window initialized");
     }
@@ -101,13 +116,25 @@ public class BrowserWindow {
         MenuItem clearHistory = new MenuItem("Clear History");
         historyMenu.getItems().add(clearHistory);
         
+        // Extensions Menu
+        Menu extensionsMenu = new Menu("Extensions");
+        MenuItem manageExtensions = new MenuItem("Manage Extensions...");
+        manageExtensions.setOnAction(e -> {
+            try {
+                new WebExtensionsManagerDialog(stage, extensionManager, new WebExtensionInstaller()).showAndWait();
+            } catch (Exception ex) {
+                logger.warn("Failed to open Extensions manager: {}", ex.getMessage());
+            }
+        });
+        extensionsMenu.getItems().add(manageExtensions);
+
         // Help Menu
         Menu helpMenu = new Menu("Help");
         MenuItem about = new MenuItem("About Pinora Browser");
         about.setOnAction(e -> showAboutDialog());
         helpMenu.getItems().add(about);
-        
-        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, historyMenu, helpMenu);
+
+        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, historyMenu, extensionsMenu, helpMenu);
         return menuBar;
     }
     
