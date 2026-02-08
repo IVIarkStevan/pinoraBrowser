@@ -5,6 +5,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -12,6 +13,7 @@ import javafx.stage.Stage;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.scene.image.Image;
+import javafx.application.Platform;
 import com.pinora.browser.core.BrowserEngine;
 import com.pinora.browser.util.URLUtil;
 import com.pinora.browser.extensions.ExtensionManager;
@@ -122,6 +124,7 @@ public class BrowserWindow {
         MenuItem resetZoom = new MenuItem("Reset Zoom (Ctrl+0)");
         MenuItem showDownloads = new MenuItem("Downloads");
         showDownloads.setOnAction(e -> openDownloadsTab());
+        showDownloads.setAccelerator(KeyCombination.keyCombination("Ctrl+J"));
         viewMenu.getItems().addAll(zoomIn, zoomOut, new SeparatorMenuItem(), resetZoom);
         viewMenu.getItems().add(new SeparatorMenuItem());
         viewMenu.getItems().add(showDownloads);
@@ -256,7 +259,7 @@ public class BrowserWindow {
                         javafx.application.Platform.runLater(() -> {
                             ContextMenu cm = new ContextMenu();
                             MenuItem downloadLink = new MenuItem("Download");
-                            downloadLink.setOnAction(ae -> downloadUrl(url));
+                            downloadLink.setOnAction(ae -> downloadManager.startDownload(url, stage));
                             MenuItem openNew = new MenuItem("Open in New Tab");
                             openNew.setOnAction(ae -> {
                                 Tab t = new Tab("New Tab");
@@ -326,6 +329,40 @@ public class BrowserWindow {
             });
         } catch (Exception ignored) {
         }
+
+        // Intercept navigations to non-HTML resources and offer to download instead
+        engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (newState == javafx.concurrent.Worker.State.RUNNING) {
+                String loc = engine.getLocation();
+                if (loc == null || loc.isEmpty()) return;
+                // run a HEAD request in background to inspect content-type
+                new Thread(() -> {
+                    try {
+                        java.net.URL u = new java.net.URL(loc);
+                        java.net.HttpURLConnection c = (java.net.HttpURLConnection) u.openConnection();
+                        c.setRequestMethod("HEAD");
+                        c.setRequestProperty("User-Agent", "PinoraBrowser/1.0");
+                        c.setInstanceFollowRedirects(true);
+                        c.connect();
+                        String ct = c.getContentType();
+                        if (ct != null && !ct.toLowerCase().startsWith("text/html")) {
+                            // cancel navigation and prompt download
+                            try { engine.getLoadWorker().cancel(); } catch (Exception ignored) {}
+                            Platform.runLater(() -> {
+                                Alert a = new Alert(Alert.AlertType.CONFIRMATION, "The resource appears to be a file (" + ct + "). Download instead?", ButtonType.YES, ButtonType.NO);
+                                a.setHeaderText("Download file");
+                                a.showAndWait().ifPresent(b -> {
+                                    if (b == ButtonType.YES) {
+                                        downloadManager.startDownload(loc, stage);
+                                    }
+                                });
+                            });
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }, "download-inspect").start();
+            }
+        });
         
         // Update address bar when tab is selected
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
@@ -429,52 +466,7 @@ public class BrowserWindow {
         }
     }
 
-    private void downloadUrl(String urlStr) {
-        javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                java.net.URL url = new java.net.URL(urlStr);
-                java.net.URLConnection conn = url.openConnection();
-                conn.setRequestProperty("User-Agent", "PinoraBrowser/1.0");
-                String raw = conn.getHeaderField("Content-Disposition");
-                String filename = null;
-                if (raw != null && raw.contains("filename=")) {
-                    filename = raw.substring(raw.indexOf("filename=") + 9).replaceAll("\"", "").trim();
-                }
-                if (filename == null || filename.isEmpty()) {
-                    String path = url.getPath();
-                    filename = path.substring(path.lastIndexOf('/') + 1);
-                    if (filename.isEmpty()) filename = "download";
-                }
-                java.io.InputStream in = conn.getInputStream();
-                java.nio.file.Path outDir = java.nio.file.Paths.get(com.pinora.browser.util.ConfigManager.getDownloadsDirectory());
-                java.nio.file.Files.createDirectories(outDir);
-                java.nio.file.Path outPath = outDir.resolve(filename);
-                try (java.io.OutputStream out = java.nio.file.Files.newOutputStream(outPath)) {
-                    byte[] buf = new byte[8192];
-                    int r; long total = 0;
-                    while ((r = in.read(buf)) != -1) {
-                        out.write(buf, 0, r);
-                        total += r;
-                    }
-                    final long size = total;
-                    javafx.application.Platform.runLater(() -> downloadManager.addDownload(filename, size));
-                } catch (Exception e) {
-                    throw e;
-                } finally {
-                    try { in.close(); } catch (Exception ignored) {}
-                }
-                return null;
-            }
-        };
-        task.setOnFailed(e -> {
-            javafx.application.Platform.runLater(() -> {
-                Alert a = new Alert(Alert.AlertType.ERROR, "Download failed: " + task.getException().getMessage(), ButtonType.OK);
-                a.showAndWait();
-            });
-        });
-        new Thread(task, "download-thread").start();
-    }
+    
 
     private void updateNavigationButtons() {
         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
@@ -525,7 +517,7 @@ public class BrowserWindow {
     }
     
     private void handleKeyboardShortcuts(KeyEvent event) {
-        if (event.isControlDown()) {
+            if (event.isControlDown()) {
             if (event.getCode() == KeyCode.T) {
                 // Ctrl+T: New Tab
                 addNewTab();
@@ -534,6 +526,10 @@ public class BrowserWindow {
                 // Ctrl+W: Close Tab
                 closeCurrentTab();
                 event.consume();
+                } else if (event.getCode() == KeyCode.J) {
+                    // Ctrl+J: Open Downloads
+                    openDownloadsTab();
+                    event.consume();
             } else if (event.getCode() == KeyCode.Q) {
                 // Ctrl+Q: Quit Application
                 stage.close();
