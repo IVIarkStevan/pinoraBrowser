@@ -242,6 +242,38 @@ public class BrowserWindow {
         webView.setStyle("-fx-font-size: 12;");
         
         WebEngine engine = webView.getEngine();
+
+        // Context menu for link/image download
+        webView.setOnMousePressed(me -> {
+            if (me.isSecondaryButtonDown()) {
+                try {
+                    double x = me.getX();
+                    double y = me.getY();
+                    String script = "(function(){var e=document.elementFromPoint(" + (int)x + "," + (int)y + "); if(!e) return ''; var t=e.tagName.toLowerCase(); if(t==='a') return e.href; if(t==='img') return e.src; return '';})()";
+                    Object res = engine.executeScript(script);
+                    String url = res == null ? "" : res.toString();
+                    if (url != null && !url.isEmpty()) {
+                        javafx.application.Platform.runLater(() -> {
+                            ContextMenu cm = new ContextMenu();
+                            MenuItem downloadLink = new MenuItem("Download");
+                            downloadLink.setOnAction(ae -> downloadUrl(url));
+                            MenuItem openNew = new MenuItem("Open in New Tab");
+                            openNew.setOnAction(ae -> {
+                                Tab t = new Tab("New Tab");
+                                WebView wv = new WebView();
+                                wv.getEngine().load(url);
+                                t.setContent(wv);
+                                tabPane.getTabs().add(t);
+                                tabPane.getSelectionModel().select(t);
+                            });
+                            cm.getItems().addAll(downloadLink, openNew);
+                            cm.show(webView, me.getScreenX(), me.getScreenY());
+                        });
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        });
         
         // Update tab title when page finishes loading
         engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
@@ -395,6 +427,53 @@ public class BrowserWindow {
         } finally {
             javafx.application.Platform.runLater(() -> updateNavigationButtons());
         }
+    }
+
+    private void downloadUrl(String urlStr) {
+        javafx.concurrent.Task<Void> task = new javafx.concurrent.Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                java.net.URL url = new java.net.URL(urlStr);
+                java.net.URLConnection conn = url.openConnection();
+                conn.setRequestProperty("User-Agent", "PinoraBrowser/1.0");
+                String raw = conn.getHeaderField("Content-Disposition");
+                String filename = null;
+                if (raw != null && raw.contains("filename=")) {
+                    filename = raw.substring(raw.indexOf("filename=") + 9).replaceAll("\"", "").trim();
+                }
+                if (filename == null || filename.isEmpty()) {
+                    String path = url.getPath();
+                    filename = path.substring(path.lastIndexOf('/') + 1);
+                    if (filename.isEmpty()) filename = "download";
+                }
+                java.io.InputStream in = conn.getInputStream();
+                java.nio.file.Path outDir = java.nio.file.Paths.get(com.pinora.browser.util.ConfigManager.getDownloadsDirectory());
+                java.nio.file.Files.createDirectories(outDir);
+                java.nio.file.Path outPath = outDir.resolve(filename);
+                try (java.io.OutputStream out = java.nio.file.Files.newOutputStream(outPath)) {
+                    byte[] buf = new byte[8192];
+                    int r; long total = 0;
+                    while ((r = in.read(buf)) != -1) {
+                        out.write(buf, 0, r);
+                        total += r;
+                    }
+                    final long size = total;
+                    javafx.application.Platform.runLater(() -> downloadManager.addDownload(filename, size));
+                } catch (Exception e) {
+                    throw e;
+                } finally {
+                    try { in.close(); } catch (Exception ignored) {}
+                }
+                return null;
+            }
+        };
+        task.setOnFailed(e -> {
+            javafx.application.Platform.runLater(() -> {
+                Alert a = new Alert(Alert.AlertType.ERROR, "Download failed: " + task.getException().getMessage(), ButtonType.OK);
+                a.showAndWait();
+            });
+        });
+        new Thread(task, "download-thread").start();
     }
 
     private void updateNavigationButtons() {
