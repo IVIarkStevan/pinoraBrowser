@@ -27,6 +27,7 @@ public class WebExtensionsManagerDialog extends Dialog<Void> {
 
     private final ExtensionManager extensionManager;
     private final WebExtensionInstaller installer;
+    private final com.pinora.browser.extensions.webext.WebExtensionLoader webExtLoader = new com.pinora.browser.extensions.webext.WebExtensionLoader();
     private final Stage owner;
 
     private ListView<String> listView;
@@ -52,7 +53,7 @@ public class WebExtensionsManagerDialog extends Dialog<Void> {
         HBox controls = new HBox(8);
         controls.setPadding(new Insets(8,0,0,0));
 
-        Button installZip = new Button("Install from ZIP...");
+        Button installZip = new Button("Install from ZIP / XPI...");
         installZip.setOnAction(e -> onInstallZip());
 
         Button installGit = new Button("Install from GitHub URL");
@@ -93,11 +94,17 @@ public class WebExtensionsManagerDialog extends Dialog<Void> {
     private void onInstallZip() {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Select WebExtension ZIP");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Zip Files", "*.zip"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Extension Files", "*.zip", "*.xpi"));
         File file = chooser.showOpenDialog(owner);
         if (file != null) {
             try {
                 String id = installer.installFromZip(file);
+                // Attempt to load the newly installed extension so it's immediately available
+                try {
+                    webExtLoader.loadExtension(installer.getWebExtensionsRoot().resolve(id).toFile());
+                } catch (Exception ex) {
+                    logger.warn("Failed to load installed extension {}: {}", id, ex.getMessage());
+                }
                 refreshList();
                 Alert a = new Alert(Alert.AlertType.INFORMATION, "Installed: " + id, ButtonType.OK);
                 a.showAndWait();
