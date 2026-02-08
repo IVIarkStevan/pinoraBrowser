@@ -30,6 +30,7 @@ public class BrowserWindow {
     private static final Logger logger = LoggerFactory.getLogger(BrowserWindow.class);
     
     private Stage stage;
+    private Scene scene;
     private TabPane tabPane;
     private TextField addressBar;
     private BrowserEngine browserEngine;
@@ -73,9 +74,18 @@ public class BrowserWindow {
         root.setBottom(createStatusBar());
         
         Scene scene = new Scene(root, 1200, 800);
+        this.scene = scene;
         
         // Add keyboard shortcut handler
         scene.setOnKeyPressed(this::handleKeyboardShortcuts);
+
+        // Apply dark mode if set in config
+        try {
+            if (com.pinora.browser.util.ConfigManager.isDarkModeEnabled()) {
+                String css = getClass().getResource("/css/dark.css").toExternalForm();
+                scene.getStylesheets().add(css);
+            }
+        } catch (Exception ignored) {}
         
         primaryStage.setTitle("Pinora Browser");
         primaryStage.setScene(scene);
@@ -125,7 +135,25 @@ public class BrowserWindow {
         MenuItem showDownloads = new MenuItem("Downloads");
         showDownloads.setOnAction(e -> openDownloadsTab());
         showDownloads.setAccelerator(KeyCombination.keyCombination("Ctrl+J"));
+
+        CheckMenuItem darkMode = new CheckMenuItem("Dark Mode");
+        darkMode.setSelected(com.pinora.browser.util.ConfigManager.isDarkModeEnabled());
+        darkMode.setOnAction(e -> {
+            boolean enabled = darkMode.isSelected();
+            try {
+                if (enabled) {
+                    String css = getClass().getResource("/css/dark.css").toExternalForm();
+                    scene.getStylesheets().add(css);
+                } else {
+                    scene.getStylesheets().removeIf(s -> s.contains("dark.css"));
+                }
+            } catch (Exception ex) {}
+            com.pinora.browser.util.ConfigManager.setDarkModeEnabled(enabled);
+        });
+        darkMode.setAccelerator(KeyCombination.keyCombination("Ctrl+Shift+D"));
         viewMenu.getItems().addAll(zoomIn, zoomOut, new SeparatorMenuItem(), resetZoom);
+        viewMenu.getItems().add(new SeparatorMenuItem());
+        viewMenu.getItems().add(darkMode);
         viewMenu.getItems().add(new SeparatorMenuItem());
         viewMenu.getItems().add(showDownloads);
         
