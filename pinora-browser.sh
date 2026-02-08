@@ -78,7 +78,7 @@ done
 MODULE_PATHS="${MODULE_PATHS#:}"
 
 if [ -n "$MODULE_PATHS" ]; then
-     exec "$JAVA_CMD" --module-path "$MODULE_PATHS" --add-modules javafx.controls,javafx.web,javafx.fxml,javafx.graphics -jar "$JAR_FILE"
+     exec "$JAVA_CMD" --module-path "$MODULE_PATHS" --add-modules javafx.controls,javafx.web,javafx.fxml,javafx.graphics -Dpinora.extensions.autoload=true -cp "$JAR_FILE" com.pinora.browser.PinoraBrowser
 else
      echo "Could not locate JavaFX jars automatically. If the JAR doesn't bundle JavaFX, install OpenJFX or set PINORA_JAVAFX to the path containing javafx-*.jar files."
      exit 1
