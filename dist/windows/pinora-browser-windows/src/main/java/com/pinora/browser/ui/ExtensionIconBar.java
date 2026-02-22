@@ -39,6 +39,7 @@ public class ExtensionIconBar extends HBox {
                     Button extButton = createExtensionButton(ctx, manifest);
                     if (extButton != null) {
                         getChildren().add(extButton);
+                        logger.info("Added extension icon for: {}", manifest.getName());
                     }
                 }
             } catch (Exception e) {
@@ -124,4 +125,3 @@ public class ExtensionIconBar extends HBox {
         }
     }
 }
-
