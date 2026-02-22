@@ -550,7 +550,7 @@ public class BrowserWindow {
     }
     
     private void handleKeyboardShortcuts(KeyEvent event) {
-            if (event.isControlDown()) {
+        if (event.isControlDown()) {
             if (event.getCode() == KeyCode.T) {
                 // Ctrl+T: New Tab
                 addNewTab();
@@ -559,13 +559,17 @@ public class BrowserWindow {
                 // Ctrl+W: Close Tab
                 closeCurrentTab();
                 event.consume();
-                } else if (event.getCode() == KeyCode.J) {
-                    // Ctrl+J: Open Downloads
-                    openDownloadsTab();
-                    event.consume();
+            } else if (event.getCode() == KeyCode.J) {
+                // Ctrl+J: Open Downloads
+                openDownloadsTab();
+                event.consume();
             } else if (event.getCode() == KeyCode.Q) {
                 // Ctrl+Q: Quit Application
                 stage.close();
+                event.consume();
+            } else if (event.getCode() == KeyCode.R) {
+                // Ctrl+R: Reload current tab
+                refreshCurrentTab();
                 event.consume();
             }
         }
