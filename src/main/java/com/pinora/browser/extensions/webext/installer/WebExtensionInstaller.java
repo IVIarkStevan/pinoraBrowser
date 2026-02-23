@@ -8,8 +8,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -39,18 +41,18 @@ public class WebExtensionInstaller {
             if (os.contains("win")) {
                 String appdata = System.getenv("APPDATA");
                 if (appdata != null && !appdata.isEmpty()) {
-                    return Paths.get(appdata, "PinoraBrowser", "webextensions");
+                    return Path.of(appdata, "PinoraBrowser", "webextensions");
                 }
-                return Paths.get(userHome, "AppData", "Roaming", "PinoraBrowser", "webextensions");
+                return Path.of(userHome, "AppData", "Roaming", "PinoraBrowser", "webextensions");
             } else if (os.contains("mac")) {
-                return Paths.get(userHome, "Library", "Application Support", "PinoraBrowser", "webextensions");
+                return Path.of(userHome, "Library", "Application Support", "PinoraBrowser", "webextensions");
             } else {
                 // Linux and others
-                return Paths.get(userHome, ".local", "share", "pinora-browser", "webextensions");
+                return Path.of(userHome, ".local", "share", "pinora-browser", "webextensions");
             }
         } catch (Exception e) {
             // Fallback to working directory
-            return Paths.get(System.getProperty("user.dir"), "webextensions");
+            return Path.of(System.getProperty("user.dir"), "webextensions");
         }
     }
 
@@ -71,7 +73,7 @@ public class WebExtensionInstaller {
     public String installFromURL(String urlStr) throws Exception {
         if (urlStr == null || urlStr.isEmpty()) throw new IllegalArgumentException("URL is empty");
         // Download to temp file
-        URL url = new URL(urlStr);
+        URL url = URI.create(urlStr).toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setInstanceFollowRedirects(true);
         conn.setConnectTimeout(15000);

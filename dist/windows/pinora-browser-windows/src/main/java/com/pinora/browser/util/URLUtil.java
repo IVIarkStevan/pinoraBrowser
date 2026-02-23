@@ -1,5 +1,7 @@
 package com.pinora.browser.util;
 
+import java.net.URI;
+
 /**
  * URL utility functions
  */
@@ -51,7 +53,7 @@ public class URLUtil {
      */
     public static boolean isValidURL(String url) {
         try {
-            new java.net.URL(url);
+            URI.create(url).toURL();
             return true;
         } catch (Exception e) {
             return false;

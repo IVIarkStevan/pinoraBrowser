@@ -22,6 +22,8 @@ import com.pinora.browser.ui.WebExtensionsManagerDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+
 /**
  * Main Browser Window UI
  */
@@ -321,7 +323,7 @@ public class BrowserWindow {
                 tab.setText(displayTitle);
             } else if (location != null && !location.isEmpty()) {
                 try {
-                    java.net.URL url = new java.net.URL(location);
+                    java.net.URL url = URI.create(location).toURL();
                     String host = url.getHost().replaceFirst("^www\\.", "");
                     tab.setText(host);
                 } catch (Exception e) {
@@ -371,7 +373,7 @@ public class BrowserWindow {
                 // run a HEAD request in background to inspect content-type
                 new Thread(() -> {
                     try {
-                        java.net.URL u = new java.net.URL(loc);
+                        java.net.URL u = URI.create(loc).toURL();
                         java.net.HttpURLConnection c = (java.net.HttpURLConnection) u.openConnection();
                         c.setRequestMethod("HEAD");
                         c.setRequestProperty("User-Agent", "PinoraBrowser/1.0");
@@ -542,9 +544,10 @@ public class BrowserWindow {
         alert.setTitle("About Pinora Browser");
         alert.setHeaderText("Pinora Browser v1.0.0");
         alert.setContentText(
-            "A lightweight, minimal yet feature-rich web browser\n" +
-            "Built with Java and JavaFX\n" +
-            "© 2026 Pinora Browser Team"
+            """
+            A lightweight, minimal yet feature-rich web browser
+            Built with Java and JavaFX
+            © 2026 Pinora Browser Team"""
         );
         alert.showAndWait();
     }

@@ -86,7 +86,7 @@ public class MessagingAPI {
 
         public boolean getBoolean(String key) {
             Object val = data.get(key);
-            return val instanceof Boolean ? (Boolean) val : false;
+            return val instanceof Boolean b ? b : false;
         }
     }
 }

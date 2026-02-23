@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,7 +55,7 @@ public class DownloadManager {
     /** Start a download with a Save-as dialog. */
     public void startDownload(String urlStr, Stage owner) {
         try {
-            URL url = new URL(urlStr);
+            URL url = URI.create(urlStr).toURL();
             String guessed = new File(url.getPath()).getName();
             if (guessed.isEmpty()) guessed = "download";
 
@@ -98,7 +99,7 @@ public class DownloadManager {
         Thread t = new Thread(() -> {
             try {
                 entry.setStatus("Downloading");
-                URL url = new URL(entry.url);
+                URL url = URI.create(entry.url).toURL();
                 Path tmp = entry.target.resolveSibling(entry.target.getFileName().toString() + ".part");
 
                 long existing = Files.exists(tmp) ? Files.size(tmp) : 0L;

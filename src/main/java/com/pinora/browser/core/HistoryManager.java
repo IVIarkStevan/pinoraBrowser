@@ -22,10 +22,10 @@ public class HistoryManager {
     
     public void addToHistory(String url) {
         HistoryEntry entry = new HistoryEntry(url, LocalDateTime.now());
-        history.add(0, entry);
+        history.addFirst(entry);
         
         if (history.size() > MAX_HISTORY_ITEMS) {
-            history.remove(history.size() - 1);
+            history.removeLast();
         }
         
         logger.debug("Added to history: {}", url);
