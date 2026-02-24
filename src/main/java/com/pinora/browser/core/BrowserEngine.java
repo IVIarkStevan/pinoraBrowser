@@ -13,11 +13,13 @@ public class BrowserEngine {
     private HistoryManager historyManager;
     private BookmarkManager bookmarkManager;
     private CacheManager cacheManager;
+    private CookieManager cookieManager;
     
     public BrowserEngine() {
         this.historyManager = new HistoryManager();
         this.bookmarkManager = new BookmarkManager();
         this.cacheManager = new CacheManager();
+        this.cookieManager = new CookieManager();
         logger.info("Browser Engine initialized");
     }
     
@@ -36,5 +38,9 @@ public class BrowserEngine {
     
     public CacheManager getCacheManager() {
         return cacheManager;
+    }
+    
+    public CookieManager getCookieManager() {
+        return cookieManager;
     }
 }

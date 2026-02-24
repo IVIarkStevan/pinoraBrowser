@@ -127,6 +127,10 @@ public class BrowserWindow {
         // Edit Menu
         Menu editMenu = new Menu("Edit");
         MenuItem preferences = new MenuItem("Preferences");
+        preferences.setOnAction(e -> {
+            PreferencesDialog prefsDialog = new PreferencesDialog(browserEngine.getCookieManager());
+            prefsDialog.show(stage);
+        });
         editMenu.getItems().add(preferences);
         
         // View Menu
@@ -176,13 +180,26 @@ public class BrowserWindow {
         });
         extensionsMenu.getItems().add(manageExtensions);
 
+        // Tools Menu
+        Menu toolsMenu = new Menu("Tools");
+        MenuItem cookieManager = new MenuItem("Cookie Manager...");
+        cookieManager.setOnAction(e -> {
+            try {
+                CookieManagerDialog dialog = new CookieManagerDialog(browserEngine.getCookieManager());
+                dialog.show(stage);
+            } catch (Exception ex) {
+                logger.error("Failed to open Cookie Manager", ex);
+            }
+        });
+        toolsMenu.getItems().add(cookieManager);
+
         // Help Menu
         Menu helpMenu = new Menu("Help");
         MenuItem about = new MenuItem("About Pinora Browser");
         about.setOnAction(e -> showAboutDialog());
         helpMenu.getItems().add(about);
 
-        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, historyMenu, extensionsMenu, helpMenu);
+        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, historyMenu, extensionsMenu, toolsMenu, helpMenu);
         return menuBar;
     }
     

@@ -6,13 +6,22 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
+import com.pinora.browser.core.CookieManager;
 
 /**
  * Preferences/Settings dialog
  */
 public class PreferencesDialog {
     
-    public static void show(Stage owner) {
+    private CookieManager cookieManager;
+    private Stage owner;
+    
+    public PreferencesDialog(CookieManager cookieManager) {
+        this.cookieManager = cookieManager;
+    }
+    
+    public void show(Stage owner) {
+        this.owner = owner;
         Stage preferencesStage = new Stage();
         preferencesStage.setTitle("Preferences - Pinora Browser");
         preferencesStage.setWidth(600);
@@ -29,11 +38,14 @@ public class PreferencesDialog {
         // Privacy Settings
         TitledPane privacyPane = createPrivacySettings();
         
+        // Cookie Settings
+        TitledPane cookiePane = createCookieSettings(preferencesStage);
+        
         // Search Settings
         TitledPane searchPane = createSearchSettings();
         
         Accordion accordion = new Accordion();
-        accordion.getPanes().addAll(generalPane, privacyPane, searchPane);
+        accordion.getPanes().addAll(generalPane, privacyPane, cookiePane, searchPane);
         accordion.setExpandedPane(generalPane);
         
         root.getChildren().add(accordion);
@@ -97,6 +109,49 @@ public class PreferencesDialog {
         );
         
         TitledPane pane = new TitledPane("Privacy & Security", content);
+        pane.setCollapsible(false);
+        return pane;
+    }
+    
+    private static TitledPane createCookieSettings(Stage owner) {
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+        
+        Label cookieHeaderLabel = new Label("Cookie Management:");
+        cookieHeaderLabel.setStyle("-fx-font-weight: bold;");
+        
+        CheckBox acceptCookies = new CheckBox("Accept cookies");
+        acceptCookies.setSelected(true);
+        
+        CheckBox blockThirdParty = new CheckBox("Block third-party cookies");
+        blockThirdParty.setSelected(true);
+        
+        CheckBox blockTracking = new CheckBox("Block tracking cookies");
+        blockTracking.setSelected(true);
+        
+        CheckBox saveCookies = new CheckBox("Save cookies between sessions");
+        saveCookies.setSelected(true);
+        
+        Label cookieInfoLabel = new Label("Persistent cookies will be saved to disk and restored on browser restart.\nSession cookies are cleared when you close the browser.");
+        cookieInfoLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 10;");
+        cookieInfoLabel.setWrapText(true);
+        
+        HBox managerBox = new HBox(10);
+        managerBox.setPadding(new Insets(10, 0, 0, 0));
+        Label managerLabel = new Label("Full Cookie Management:");
+        Button openManager = new Button("Open Cookie Manager");
+        openManager.setStyle("-fx-padding: 5 15;");
+        openManager.setDisable(true); // Will be enabled by the caller if cookie manager is available
+        managerBox.getChildren().addAll(managerLabel, openManager);
+        
+        content.getChildren().addAll(
+            cookieHeaderLabel, new Separator(),
+            acceptCookies, blockThirdParty, blockTracking, saveCookies,
+            new Separator(), cookieInfoLabel,
+            new Separator(), managerBox
+        );
+        
+        TitledPane pane = new TitledPane("Cookies", content);
         pane.setCollapsible(false);
         return pane;
     }
