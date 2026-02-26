@@ -1,7 +1,6 @@
 package com.pinora.browser.core;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -292,7 +291,6 @@ public class CookieManager {
     
     private boolean isTrackingCookie(CookieData cookie) {
         String name = cookie.getName().toLowerCase();
-        String value = cookie.getValue().toLowerCase();
         
         // Common tracking cookie patterns
         String[] trackingPatterns = {

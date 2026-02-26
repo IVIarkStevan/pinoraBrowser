@@ -1,7 +1,6 @@
 package com.pinora.browser.core;
 
 import java.io.Serializable;
-import java.time.Instant;
 import java.util.Objects;
 
 /**

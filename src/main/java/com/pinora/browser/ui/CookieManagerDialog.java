@@ -133,7 +133,7 @@ public class CookieManagerDialog {
         tableLabel.setStyle("-fx-font-weight: bold;");
         
         cookieTable = new TableView<>();
-        cookieTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        cookieTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         
         TableColumn<CookieData, String> nameCol = new TableColumn<>("Name");
         nameCol.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getName()));
@@ -157,7 +157,10 @@ public class CookieManagerDialog {
         expiryCol.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getExpiryTimeString()));
         expiryCol.setPrefWidth(150);
         
-        cookieTable.getColumns().addAll(nameCol, domainCol, valueCol, expiryCol);
+        cookieTable.getColumns().add(nameCol);
+        cookieTable.getColumns().add(domainCol);
+        cookieTable.getColumns().add(valueCol);
+        cookieTable.getColumns().add(expiryCol);
         cookieTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
                 displayCookieDetails(newVal);
@@ -220,7 +223,7 @@ public class CookieManagerDialog {
         exportButton.setOnAction(e -> exportCookies());
         
         Button importButton = new Button("Import");
-        importButton.setStyle("-fp-padding: 8 15;");
+        importButton.setStyle("-fx-padding: 8 15;");
         importButton.setOnAction(e -> importCookies());
         
         Button refreshButton = new Button("Refresh");

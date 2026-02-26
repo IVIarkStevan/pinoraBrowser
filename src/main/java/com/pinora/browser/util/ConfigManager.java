@@ -3,8 +3,6 @@ package com.pinora.browser.util;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.google.gson.Gson;
@@ -65,7 +63,9 @@ public class ConfigManager {
             if (!f.exists()) return false;
             try (FileReader r = new FileReader(f)) {
                 JsonObject obj = GSON.fromJson(r, JsonObject.class);
-                if (obj != null && obj.has("darkMode")) return obj.get("darkMode").getAsBoolean();
+                if (obj != null && obj.has("darkMode")) {
+                    return obj.get("darkMode").getAsBoolean();
+                }
             }
         } catch (Exception e) {
             logger.warn("Failed to read config: {}", e.getMessage());

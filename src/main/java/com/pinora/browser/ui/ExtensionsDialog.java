@@ -76,7 +76,7 @@ public class ExtensionsDialog {
         infoLabel.setStyle("-fx-font-weight: bold;");
 
         TableView<ExtensionManager.ExtensionDescriptor> table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
         TableColumn<ExtensionManager.ExtensionDescriptor, String> nameCol = new TableColumn<>("Name");
         nameCol.setCellValueFactory(cell -> new javafx.beans.property.SimpleStringProperty(cell.getValue().getDisplayName()));
@@ -90,7 +90,10 @@ public class ExtensionsDialog {
         TableColumn<ExtensionManager.ExtensionDescriptor, String> statusCol = new TableColumn<>("Status");
         statusCol.setCellValueFactory(cell -> new javafx.beans.property.SimpleStringProperty(cell.getValue().isLoaded() ? "Loaded" : "Not loaded"));
 
-        table.getColumns().addAll(nameCol, jarCol, enabledCol, statusCol);
+        table.getColumns().add(nameCol);
+        table.getColumns().add(jarCol);
+        table.getColumns().add(enabledCol);
+        table.getColumns().add(statusCol);
 
         List<ExtensionManager.ExtensionDescriptor> items = manager.listExtensions();
         ObservableList<ExtensionManager.ExtensionDescriptor> data = FXCollections.observableArrayList(items);

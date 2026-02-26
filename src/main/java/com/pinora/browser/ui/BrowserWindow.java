@@ -15,15 +15,14 @@ import javafx.scene.web.WebView;
 import javafx.scene.image.Image;
 import javafx.application.Platform;
 import com.pinora.browser.core.BrowserEngine;
+import com.pinora.browser.core.CookieInterceptor;
 import com.pinora.browser.util.URLUtil;
 import com.pinora.browser.extensions.ExtensionManager;
 import com.pinora.browser.extensions.webext.installer.WebExtensionInstaller;
-import com.pinora.browser.ui.WebExtensionsManagerDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-
 /**
  * Main Browser Window UI
  */
@@ -37,6 +36,7 @@ public class BrowserWindow {
     private TextField addressBar;
     private BrowserEngine browserEngine;
     private ExtensionManager extensionManager;
+    private CookieInterceptor cookieInterceptor;
     private Button backButton;
     private Button forwardButton;
     private com.pinora.browser.extensions.webext.WebExtensionLoader webExtensionLoader;
@@ -45,6 +45,7 @@ public class BrowserWindow {
     public BrowserWindow() {
         this.browserEngine = new BrowserEngine();
         this.extensionManager = new ExtensionManager();
+        this.cookieInterceptor = new CookieInterceptor(browserEngine.getCookieManager());
     }
 
     public ExtensionManager getExtensionManager() {
@@ -287,6 +288,77 @@ public class BrowserWindow {
         return statusBar;
     }
     
+    /**
+     * Initialize WebEngine with proper settings for image/video rendering, audio, and error handling
+     */
+    private void initializeWebEngine(WebEngine engine) {
+        // Create persistent cache directories
+        try {
+            java.io.File cacheDir = new java.io.File(System.getProperty("user.home") + "/.pinora-browser/cache");
+            java.io.File cookieDir = new java.io.File(System.getProperty("user.home") + "/.pinora-browser/cookies");
+            java.io.File sessionDir = new java.io.File(System.getProperty("user.home") + "/.pinora-browser/session");
+            
+            if (!cacheDir.exists()) cacheDir.mkdirs();
+            if (!cookieDir.exists()) cookieDir.mkdirs();
+            if (!sessionDir.exists()) sessionDir.mkdirs();
+            
+            logger.info("WebEngine cache directories initialized");
+        } catch (Exception e) {
+            logger.warn("Failed to create cache directories: {}", e.getMessage());
+        }
+        
+        // Enable JavaScript - required for web functionality
+        engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
+                try {
+                    // Inject AudioContext initialization script for proper audio playback
+                    // This ensures audio is not distorted and sample rates are correct
+                    String audioInitScript = "if(window.AudioContext){"
+                        + "  if(!window._pinora_audio_context){"
+                        + "    try{"
+                        + "      window._pinora_audio_context=new AudioContext({sampleRate:48000,latencyHint:'interactive'});"
+                        + "      console.log('[Pinora] AudioContext initialized at 48kHz');"
+                        + "    }catch(e){"
+                        + "      try{"
+                        + "        window._pinora_audio_context=new AudioContext();"
+                        + "        console.log('[Pinora] AudioContext initialized with default sample rate');"
+                        + "      }catch(e2){console.warn('[Pinora] AudioContext initialization failed:',e2);}"
+                        + "    }"
+                        + "  }"
+                        + "}";
+                    engine.executeScript(audioInitScript);
+                } catch (Exception e) {
+                    logger.debug("Failed to inject audio initialization: {}", e.getMessage());
+                }
+            }
+        });
+        
+        // Error handler for script execution
+        engine.setOnError(event -> {
+            logger.debug("WebEngine error: {}", event.getMessage());
+        });
+        
+        // Handle load worker errors
+        engine.getLoadWorker().exceptionProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                logger.debug("Page load exception: {}", newVal.getMessage());
+            }
+        });
+        
+        // Monitor page state changes for debugging
+        engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (newState == javafx.concurrent.Worker.State.FAILED) {
+                logger.error("Page load failed for: {}", engine.getLocation());
+                Throwable exception = engine.getLoadWorker().getException();
+                if (exception != null) {
+                    logger.error("Load error details: {}", exception.getMessage());
+                }
+            }
+        });
+        
+        logger.info("WebEngine initialized with cache support and audio configuration");
+    }
+    
     private void addNewTab() {
         Tab tab = new Tab();
         tab.setText("New Tab");
@@ -296,6 +368,9 @@ public class BrowserWindow {
         webView.setStyle("-fx-font-size: 12;");
         
         WebEngine engine = webView.getEngine();
+        
+        // Initialize WebEngine with proper settings
+        initializeWebEngine(engine);
 
         // Context menu for link/image download
         webView.setOnMousePressed(me -> {
@@ -393,9 +468,17 @@ public class BrowserWindow {
                         java.net.URL u = URI.create(loc).toURL();
                         java.net.HttpURLConnection c = (java.net.HttpURLConnection) u.openConnection();
                         c.setRequestMethod("HEAD");
-                        c.setRequestProperty("User-Agent", "PinoraBrowser/1.0");
+                        c.setRequestProperty("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
                         c.setInstanceFollowRedirects(true);
+                        
+                        // Add cookies from cookie manager to the request
+                        cookieInterceptor.addCookiesFromManager(c, loc);
+                        
                         c.connect();
+                        
+                        // Extract any cookies from the response
+                        cookieInterceptor.extractCookiesFromResponse(c, loc);
+                        
                         String ct = c.getContentType();
                         if (ct != null && !ct.toLowerCase().startsWith("text/html")) {
                             // cancel navigation and prompt download

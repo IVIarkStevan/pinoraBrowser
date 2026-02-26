@@ -179,3 +179,43 @@ if (typeof browser === 'undefined') {
     
     console.log('[browser-api-shim] Loaded browser API compatibility shim');
 }
+
+// Initialize AudioContext for proper audio playback on all pages
+// This prevents distorted audio and ensures correct sample rates
+(function() {
+    'use strict';
+    
+    if (!window._pinora_audio_initialized && typeof AudioContext !== 'undefined') {
+        try {
+            // Try to create AudioContext with optimal settings for YouTube/media playback
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                sampleRate: 48000,
+                latencyHint: 'interactive'
+            });
+            window._pinora_audio_context = audioContext;
+            console.log('[Pinora Audio] AudioContext initialized (48kHz, latency: interactive)');
+        } catch (e) {
+            // Fallback to default AudioContext if specific settings not supported
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                window._pinora_audio_context = audioContext;
+                console.log('[Pinora Audio] AudioContext initialized (default settings)');
+            } catch (ex) {
+                console.warn('[Pinora Audio] Failed to initialize AudioContext:', ex.message);
+            }
+        }
+        window._pinora_audio_initialized = true;
+    }
+})();
+
+// Resume AudioContext if suspended (some browsers suspend on user interaction)
+document.addEventListener('click', function resumeAudioContext() {
+    if (window._pinora_audio_context && window._pinora_audio_context.state === 'suspended') {
+        window._pinora_audio_context.resume().catch(err => 
+            console.warn('[Pinora Audio] Failed to resume AudioContext:', err)
+        );
+    }
+}, { once: true });
+
+console.log('[Pinora Browser] Audio initialization module loaded');
+

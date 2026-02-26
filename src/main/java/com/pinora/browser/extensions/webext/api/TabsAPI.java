@@ -1,6 +1,6 @@
 package com.pinora.browser.extensions.webext.api;
 
-import javafx.scene.web.WebView;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

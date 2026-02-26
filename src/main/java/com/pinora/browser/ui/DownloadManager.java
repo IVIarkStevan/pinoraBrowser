@@ -105,16 +105,16 @@ public class DownloadManager {
                 long existing = Files.exists(tmp) ? Files.size(tmp) : 0L;
 
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                if (existing > 0) {
-                    conn.setRequestProperty("Range", "bytes=" + existing + "-");
-                }
-                conn.setRequestProperty("User-Agent", "PinoraBrowser/1.0");
-                conn.connect();
+                try {
+                    if (existing > 0) {
+                        conn.setRequestProperty("Range", "bytes=" + existing + "-");
+                    }
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                    conn.connect();
 
-                int response = conn.getResponseCode();
-                long contentLength = conn.getHeaderFieldLong("Content-Length", -1);
-                boolean acceptRanges = "bytes".equalsIgnoreCase(conn.getHeaderField("Accept-Ranges"));
-                long total = (contentLength > 0 && existing > 0 && response == 206) ? existing + contentLength : (contentLength > 0 ? contentLength : -1);
+                    int response = conn.getResponseCode();
+                    long contentLength = conn.getHeaderFieldLong("Content-Length", -1);
+                    long total = (contentLength > 0 && existing > 0 && response == 206) ? existing + contentLength : (contentLength > 0 ? contentLength : -1);
                 entry.setTotalSize(total);
 
                 try (RandomAccessFile raf = new RandomAccessFile(tmp.toFile(), "rw")) {
@@ -139,14 +139,17 @@ public class DownloadManager {
                             entry.setDownloaded(dl);
                         }
                     }
-                    if (!entry.isCanceled()) {
-                        // move .part to final file (overwrite if exists)
-                        Files.move(tmp, entry.target, StandardCopyOption.REPLACE_EXISTING);
-                        entry.setStatus("Completed");
-                        entry.setProgress(1.0);
-                    } else {
-                        try { Files.deleteIfExists(tmp); } catch (IOException ignored) {}
+                        if (!entry.isCanceled()) {
+                            // move .part to final file (overwrite if exists)
+                            Files.move(tmp, entry.target, StandardCopyOption.REPLACE_EXISTING);
+                            entry.setStatus("Completed");
+                            entry.setProgress(1.0);
+                        } else {
+                            try { Files.deleteIfExists(tmp); } catch (IOException ignored) {}
+                        }
                     }
+                } finally {
+                    conn.disconnect();
                 }
             } catch (Exception e) {
                 logger.warn("Download failed: {}", e.getMessage());
@@ -234,7 +237,6 @@ public class DownloadManager {
         private volatile boolean paused = false;
         private volatile boolean canceled = false;
         private final DoubleProperty progress = new SimpleDoubleProperty(0);
-        private volatile long downloaded = 0;
         private volatile long total = -1;
         private final StringProperty status = new SimpleStringProperty("Queued");
 
@@ -254,15 +256,14 @@ public class DownloadManager {
         public void resume() { paused = false; status.set("Downloading"); }
         public void cancel() { canceled = true; status.set("Canceled"); }
         public boolean isCanceled() { return canceled; }
-        public void setDownloaded(long d) { this.downloaded = d; }
+        public void setDownloaded(long d) { } // Value is set inline during download
         public void setTotalSize(long t) { this.total = t; }
         public String getStatus() { return status.get(); }
         public StringProperty statusProperty() { return status; }
         public Path getTarget() { return target; }
         public String getUrl() { return url; }
         public void setStatus(String s) { Platform.runLater(() -> status.set(s)); }
-        public void setDownloadedAndProgress(long d) { setDownloaded(d); if (total>0) setProgress((double)d/total); }
-        public void setDownloadedSilent(long d) { this.downloaded = d; }
+        public void setDownloadedAndProgress(long d) { if (total>0) setProgress((double)d/total); }
         public SimpleStringProperty pausedProperty() { return new SimpleStringProperty(paused ? "true" : "false"); }
     }
 }

@@ -13,15 +13,11 @@ import com.pinora.browser.core.CookieManager;
  */
 public class PreferencesDialog {
     
-    private CookieManager cookieManager;
-    private Stage owner;
-    
     public PreferencesDialog(CookieManager cookieManager) {
-        this.cookieManager = cookieManager;
+        // Constructor accepts cookieManager for potential future use
     }
     
     public void show(Stage owner) {
-        this.owner = owner;
         Stage preferencesStage = new Stage();
         preferencesStage.setTitle("Preferences - Pinora Browser");
         preferencesStage.setWidth(600);

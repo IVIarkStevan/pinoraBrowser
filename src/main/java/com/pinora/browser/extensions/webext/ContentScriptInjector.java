@@ -2,12 +2,9 @@ package com.pinora.browser.extensions.webext;
 
 import javafx.scene.web.WebView;
 import javafx.scene.web.WebEngine;
-import netscape.javascript.JSObject;
-import com.pinora.browser.extensions.webext.WebExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Injects content scripts into web pages based on manifest rules.

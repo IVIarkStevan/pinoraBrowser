@@ -58,28 +58,51 @@ fi
 
 echo "Launching: $JAR_FILE"
 
-# Try simple jar launch first
-if "$JAVA_CMD" -jar "$JAR_FILE"; then
-     exit 0
-fi
+# Set environment variables to fix Pango/GTK rendering issues on Linux
+export GTK_DEBUG=""
+export GDK_SCALE=1
+export GDK_DPI_SCALE=1
+# Use more stable input method to prevent Pango assertion errors
+export GTK_IM_MODULE=fcitx
 
-echo "Plain -jar launch failed; attempting JavaFX module-path fallback..."
+# Setup for JavaFX module-path requirement
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Build module path from common locations (m2 and system openjfx)
-MODULE_PATHS=""
-CANDIDATES=("$HOME/.m2/repository/org/openjfx" "/usr/share/openjfx/lib" "/usr/lib/jvm")
-for base in "${CANDIDATES[@]}"; do
-     if [ -d "$base" ]; then
-          while IFS= read -r jar; do
-                    MODULE_PATHS="$MODULE_PATHS:$jar"
-               done < <(find "$base" -name "javafx-*.jar" ! -name "*sources*" ! -name "*javadoc*" ! -name "*docs*" 2>/dev/null | sort)
+# Try launching from target/dist with module-path
+if [ -d "$DIR/target/dist" ] && [ -d "$DIR/target/dist/lib" ]; then
+     echo "Found distribution in target/dist"
+     JAR_FILE="$DIR/target/dist/pinora-browser-1.0.0.jar"
+     LIB_PATH="$DIR/target/dist/lib"
+     
+     if [ -f "$JAR_FILE" ] && [ -f "$LIB_PATH/javafx-controls-21.jar" ]; then
+          echo "Using module-path approach with extracted lib..."
+          exec "$JAVA_CMD" \
+               --module-path "$LIB_PATH" \
+               --add-modules javafx.controls,javafx.web,javafx.fxml,javafx.graphics,javafx.media,javafx.base \
+               -cp "$JAR_FILE" \
+               com.pinora.browser.PinoraBrowser
      fi
-done
-MODULE_PATHS="${MODULE_PATHS#:}"
-
-if [ -n "$MODULE_PATHS" ]; then
-     exec "$JAVA_CMD" --module-path "$MODULE_PATHS" --add-modules javafx.controls,javafx.web,javafx.fxml,javafx.graphics -Dpinora.extensions.autoload=true -cp "$JAR_FILE" com.pinora.browser.PinoraBrowser
-else
-     echo "Could not locate JavaFX jars automatically. If the JAR doesn't bundle JavaFX, install OpenJFX or set PINORA_JAVAFX to the path containing javafx-*.jar files."
-     exit 1
 fi
+
+# Fallback: Try with original JAR if it has embedded lib
+if [ -f "$JAR_FILE" ]; then
+     echo "Attempting to launch original JAR with fallback..."
+     # Extract to temp and use module-path
+     TEMP_DIR=$(mktemp -d)
+     trap "rm -rf $TEMP_DIR" EXIT
+     cd "$TEMP_DIR"
+     jar xf "$JAR_FILE" lib/ 2>/dev/null || true
+     
+     if [ -d "$TEMP_DIR/lib" ] && [ -f "$TEMP_DIR/lib/javafx-controls-21.jar" ]; then
+          exec "$JAVA_CMD" \
+               --module-path "$TEMP_DIR/lib" \
+               --add-modules javafx.controls,javafx.web,javafx.fxml,javafx.graphics,javafx.media,javafx.base \
+               -cp "$JAR_FILE" \
+               com.pinora.browser.PinoraBrowser
+     fi
+fi
+
+echo "Failed to launch: could not find JavaFX dependencies"
+exit 1
+
+

@@ -14,8 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.stream.Collectors;
 
 /**
@@ -25,7 +23,6 @@ public class WebExtensionsManagerDialog extends Dialog<Void> {
 
     private static final Logger logger = LoggerFactory.getLogger(WebExtensionsManagerDialog.class);
 
-    private final ExtensionManager extensionManager;
     private final WebExtensionInstaller installer;
     private final com.pinora.browser.extensions.webext.WebExtensionLoader webExtLoader = new com.pinora.browser.extensions.webext.WebExtensionLoader();
     private final Stage owner;
@@ -34,7 +31,6 @@ public class WebExtensionsManagerDialog extends Dialog<Void> {
 
     public WebExtensionsManagerDialog(Stage owner, ExtensionManager extensionManager, WebExtensionInstaller installer) {
         this.owner = owner;
-        this.extensionManager = extensionManager;
         this.installer = installer;
 
         setTitle("WebExtensions Manager");
