@@ -15,6 +15,23 @@ A lightweight, minimal yet feature-rich web browser built with Java, designed fo
 - **Download Manager**: File download tracking
 - **Search Suggestions**: Quick search with multiple engines
 
+## Known Limitations
+
+### Bookmark Persistence
+- **Bookmarks are not saved to disk** - Bookmarks are lost when the application is restarted
+  - This is a planned feature for a future release
+  - Currently, all browser data (bookmarks, history) exists only in memory
+
+### History Menu
+- **"Clear History" menu item has no action** - The menu item exists but does not perform any function
+  - Functionality is planned for a future release
+  - History data is currently cleared automatically on application restart
+
+### Bookmarks/History UI
+- **No visible panel to view bookmarks or history** - There is no UI panel or sidebar to display and manage bookmarks or browsing history
+  - Menu items exist but lack a corresponding interface
+  - This feature is planned for a future release
+
 ## Project Structure
 
 ```

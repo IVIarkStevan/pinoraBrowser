@@ -34,6 +34,7 @@ public class BrowserWindow {
     private Scene scene;
     private TabPane tabPane;
     private TextField addressBar;
+    private TextField searchBar;
     private BrowserEngine browserEngine;
     private ExtensionManager extensionManager;
     private CookieInterceptor cookieInterceptor;
@@ -41,6 +42,10 @@ public class BrowserWindow {
     private Button forwardButton;
     private com.pinora.browser.extensions.webext.WebExtensionLoader webExtensionLoader;
     private DownloadManager downloadManager = new DownloadManager();
+    private double zoomLevel = 1.0; // Track current zoom level
+    private static final double ZOOM_INCREMENT = 0.1; // 10% per zoom step
+    private static final double MIN_ZOOM = 0.5;
+    private static final double MAX_ZOOM = 3.0;
     
     public BrowserWindow() {
         this.browserEngine = new BrowserEngine();
@@ -139,6 +144,9 @@ public class BrowserWindow {
         MenuItem zoomIn = new MenuItem("Zoom In (Ctrl++)");
         MenuItem zoomOut = new MenuItem("Zoom Out (Ctrl+-)");
         MenuItem resetZoom = new MenuItem("Reset Zoom (Ctrl+0)");
+        zoomIn.setOnAction(e -> handleZoomIn());
+        zoomOut.setOnAction(e -> handleZoomOut());
+        resetZoom.setOnAction(e -> handleResetZoom());
         MenuItem showDownloads = new MenuItem("Downloads");
         showDownloads.setOnAction(e -> openDownloadsTab());
         showDownloads.setAccelerator(KeyCombination.keyCombination("Ctrl+J"));
@@ -167,6 +175,15 @@ public class BrowserWindow {
         // History Menu
         Menu historyMenu = new Menu("History");
         MenuItem clearHistory = new MenuItem("Clear History");
+        clearHistory.setOnAction(e -> {
+            try {
+                browserEngine.getHistoryManager().clearHistory();
+                new Alert(Alert.AlertType.INFORMATION, "Browsing history cleared", ButtonType.OK).showAndWait();
+            } catch (Exception ex) {
+                logger.warn("Error clearing history: {}", ex.getMessage());
+                new Alert(Alert.AlertType.ERROR, "Failed to clear history", ButtonType.OK).showAndWait();
+            }
+        });
         historyMenu.getItems().add(clearHistory);
         
         // Extensions Menu
@@ -256,19 +273,27 @@ public class BrowserWindow {
         homeButton.setStyle("-fx-font-size: 14;");
         homeButton.setOnAction(e -> navigateToHome());
         
-        // Address Bar
+        // Address Bar - URLs only
         addressBar = new TextField();
-        addressBar.setPromptText("Enter URL or search...");
+        addressBar.setPromptText("Enter URL...");
         addressBar.setPrefHeight(30);
         addressBar.setStyle("-fx-font-size: 12; -fx-padding: 5;");
         addressBar.setOnAction(e -> navigateToAddress());
+        
+        // Search Bar - Dedicated search functionality
+        searchBar = new TextField();
+        searchBar.setPromptText("Search...");
+        searchBar.setPrefWidth(180);
+        searchBar.setPrefHeight(30);
+        searchBar.setStyle("-fx-font-size: 12; -fx-padding: 5;");
+        searchBar.setOnAction(e -> performSearch());
         
         // Extension Icon Bar
         ExtensionIconBar extensionBar = new ExtensionIconBar(webExtensionLoader);
         extensionBar.setStyle("-fx-padding: 0; -fx-border-width: 0;");
         
         toolbar.getChildren().addAll(
-            backButton, forwardButton, refreshButton, homeButton, addressBar, extensionBar
+            backButton, forwardButton, refreshButton, homeButton, addressBar, searchBar, extensionBar
         );
         
         HBox.setHgrow(addressBar, javafx.scene.layout.Priority.ALWAYS);
@@ -311,17 +336,17 @@ public class BrowserWindow {
         engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
                 try {
-                    // Inject AudioContext initialization script for proper audio playback
-                    // This ensures audio is not distorted and sample rates are correct
+                    // Initialize AudioContext with native system sample rate for proper audio playback
+                    // Using system's native sample rate prevents audio speed/pitch issues
                     String audioInitScript = "if(window.AudioContext){"
                         + "  if(!window._pinora_audio_context){"
                         + "    try{"
-                        + "      window._pinora_audio_context=new AudioContext({sampleRate:48000,latencyHint:'interactive'});"
-                        + "      console.log('[Pinora] AudioContext initialized at 48kHz');"
+                        + "      window._pinora_audio_context=new AudioContext({latencyHint:'interactive'});"
+                        + "      console.log('[Pinora] AudioContext initialized with system sample rate: ' + window._pinora_audio_context.sampleRate + 'Hz');"
                         + "    }catch(e){"
                         + "      try{"
                         + "        window._pinora_audio_context=new AudioContext();"
-                        + "        console.log('[Pinora] AudioContext initialized with default sample rate');"
+                        + "        console.log('[Pinora] AudioContext initialized (default)');"
                         + "      }catch(e2){console.warn('[Pinora] AudioContext initialization failed:',e2);}"
                         + "    }"
                         + "  }"
@@ -511,8 +536,29 @@ public class BrowserWindow {
         });
         
         tab.setContent(webView);
+        
+        // Add listener to detect when tab is closed (by X button or menu) to cleanup resources
+        tabPane.getTabs().addListener((javafx.collections.ListChangeListener<Tab>) change -> {
+            while (change.next()) {
+                if (change.wasRemoved()) {
+                    for (Tab removedTab : change.getRemoved()) {
+                        if (removedTab == tab) {
+                            // Tab was removed, cleanup WebEngine
+                            try {
+                                cleanupWebEngine(webView, tab.getText());
+                            } catch (Exception e) {
+                                logger.debug("Error cleaning up tab on close: {}", e.getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().selectLast();
+        // Clear address bar for new tab
+        addressBar.setText("");
         // Ensure navigation buttons reflect the newly selected tab
         updateNavigationButtons();
         
@@ -538,7 +584,16 @@ public class BrowserWindow {
     private void navigateToAddress() {
         String address = addressBar.getText().trim();
         if (!address.isEmpty()) {
-            String url = URLUtil.formatURL(address);
+            // Address bar only accepts URLs
+            // If no protocol, add https://
+            String url = address;
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                if (url.matches("^\\d+\\.\\d+\\.\\d+\\.\\d+.*")) {
+                    url = "http://" + url;
+                } else {
+                    url = "https://" + url;
+                }
+            }
             addressBar.setText(url);
             
             Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
@@ -552,6 +607,35 @@ public class BrowserWindow {
                 engine.load(url);
                 logger.info("Navigating to: {}", url);
                 // update nav buttons after navigation starts
+                updateNavigationButtons();
+            }
+        }
+    }
+    
+    /**
+     * Perform a search using the dedicated search bar
+     */
+    private void performSearch() {
+        String query = searchBar.getText().trim();
+        if (!query.isEmpty()) {
+            // Use Google search by default
+            String searchUrl = "https://www.google.com/search?q=" + URLUtil.encodeURL(query);
+            
+            Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+            if (selectedTab != null) {
+                WebView webView = (WebView) selectedTab.getContent();
+                WebEngine engine = webView.getEngine();
+                
+                // Update tab title to loading state
+                selectedTab.setText("Searching...");
+                
+                engine.load(searchUrl);
+                logger.info("Performing search: {}", query);
+                
+                // Clear search bar after search
+                searchBar.clear();
+                
+                // Update nav buttons
                 updateNavigationButtons();
             }
         }
@@ -674,13 +758,100 @@ public class BrowserWindow {
                 // Ctrl+R: Reload current tab
                 refreshCurrentTab();
                 event.consume();
+            } else if (event.getCode() == KeyCode.PLUS || event.getCode() == KeyCode.EQUALS) {
+                // Ctrl++: Zoom In
+                handleZoomIn();
+                event.consume();
+            } else if (event.getCode() == KeyCode.MINUS) {
+                // Ctrl+-: Zoom Out
+                handleZoomOut();
+                event.consume();
+            } else if (event.getCode() == KeyCode.DIGIT0) {
+                // Ctrl+0: Reset Zoom
+                handleResetZoom();
+                event.consume();
             }
         }
     }
     
-    private void closeCurrentTab() {
+    /**
+     * Cleanup WebEngine resources to prevent memory leaks
+     * Called when tabs are closed via X button or menu
+     */
+    private void cleanupWebEngine(WebView webView, String tabName) {
+        if (webView != null) {
+            WebEngine engine = webView.getEngine();
+            if (engine != null) {
+                try {
+                    // Cancel any pending page loads
+                    engine.getLoadWorker().cancel();
+                } catch (Exception e) {
+                    logger.debug("Error canceling page load: {}", e.getMessage());
+                }
+                
+                try {
+                    // Load null to release held resources
+                    engine.load(null);
+                } catch (Exception e) {
+                    logger.debug("Error loading null: {}", e.getMessage());
+                }
+                
+                try {
+                    // Clear browser history to free memory
+                    engine.getHistory().getEntries().clear();
+                } catch (Exception e) {
+                    logger.debug("Error clearing history: {}", e.getMessage());
+                }
+                
+                logger.debug("WebEngine resources cleaned up for closed tab: {}", tabName);
+            }
+        }
+    }
+
+    private void handleZoomIn() {
+        if (zoomLevel < MAX_ZOOM) {
+            zoomLevel += ZOOM_INCREMENT;
+            applyZoom();
+        }
+    }
+    
+    private void handleZoomOut() {
+        if (zoomLevel > MIN_ZOOM) {
+            zoomLevel -= ZOOM_INCREMENT;
+            applyZoom();
+        }
+    }
+    
+    private void handleResetZoom() {
+        zoomLevel = 1.0;
+        applyZoom();
+    }
+    
+    private void applyZoom() {
         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
         if (selectedTab != null) {
+            try {
+                WebView webView = (WebView) selectedTab.getContent();
+                WebEngine engine = webView.getEngine();
+                // Apply zoom using CSS transform on the document body
+                engine.executeScript("document.body.style.zoom = '" + (zoomLevel * 100) + "%';");
+            } catch (Exception e) {
+                logger.debug("Error applying zoom: {}", e.getMessage());
+            }
+        }
+    }
+
+private void closeCurrentTab() {
+        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab != null) {
+            // Clean up WebEngine resources before closing
+            try {
+                WebView webView = (WebView) selectedTab.getContent();
+                cleanupWebEngine(webView, selectedTab.getText());
+            } catch (Exception e) {
+                logger.debug("Error cleaning up tab: {}", e.getMessage());
+            }
+            
             tabPane.getTabs().remove(selectedTab);
             logger.info("Tab closed");
             

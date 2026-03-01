@@ -5,44 +5,36 @@
     http://maven.apache.org/xsd/assembly-1.1.3.xsd">
     <id>dist</id>
     <formats>
-        <format>jar</format>
+        <format>zip</format>
+        <format>dir</format>
     </formats>
-    <includeBaseDirectory>false</includeBaseDirectory>
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <baseDirectory>pinora-browser-${project.version}</baseDirectory>
 
-    <fileSets>
-        <!-- Include compiled classes -->
-        <fileSet>
-            <directory>${project.build.outputDirectory}</directory>
-            <outputDirectory>/</outputDirectory>
-            <includes>
-                <include>**</include>
-            </includes>
-        </fileSet>
-    </fileSets>
+    <files>
+        <!-- Include the main project JAR -->
+        <file>
+            <source>${project.build.directory}/${project.build.finalName}.jar</source>
+            <outputDirectory>.</outputDirectory>
+        </file>
+        <!-- Copy scripts -->
+        <file>
+            <source>${basedir}/pinora-browser.sh</source>
+            <outputDirectory>.</outputDirectory>
+            <fileMode>0755</fileMode>
+        </file>
+        <file>
+            <source>${basedir}/pinora-browser.bat</source>
+            <outputDirectory>.</outputDirectory>
+        </file>
+    </files>
 
-    <!-- Include all dependencies in lib folder, EXCLUDING javafx -->
+    <!-- Include all dependencies in lib folder outside the JAR -->
     <dependencySets>
         <dependencySet>
             <outputDirectory>lib</outputDirectory>
             <scope>runtime</scope>
             <useProjectArtifact>false</useProjectArtifact>
-            <excludes>
-                <exclude>org.openjfx:*</exclude>
-            </excludes>
-        </dependencySet>
-        <!-- Separately add JavaFX with platform classifier -->
-        <dependencySet>
-            <outputDirectory>lib</outputDirectory>
-            <scope>runtime</scope>
-            <useProjectArtifact>false</useProjectArtifact>
-            <includes>
-                <include>org.openjfx:javafx-controls</include>
-                <include>org.openjfx:javafx-web</include>
-                <include>org.openjfx:javafx-fxml</include>
-                <include>org.openjfx:javafx-graphics</include>
-                <include>org.openjfx:javafx-base</include>
-                <include>org.openjfx:javafx-media</include>
-            </includes>
         </dependencySet>
     </dependencySets>
 </assembly>

@@ -14,7 +14,10 @@
 
 ## Phase 2: Enhanced Features (Next)
 - [ ] Advanced tab management (tab groups, preview on hover)
+- [ ] **Bookmarks/History UI panel** (No visible panel to view or manage them)
 - [ ] Bookmarks bar with drag-and-drop
+- [ ] **Bookmark persistence to disk** (Currently bookmarks are lost on restart)
+- [ ] **Clear History functionality** (Menu item exists but has no action)
 - [ ] Search suggestions with multiple engines
 - [ ] Download manager with pause/resume
 - [ ] Password manager integration

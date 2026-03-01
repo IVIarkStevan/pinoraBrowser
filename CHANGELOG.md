@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minimum 512 MB RAM recommended
 - Approximately 47 MB download size
 - Initial release with core browser functionality
+- **Known Limitations**: 
+  - Bookmark data is not persisted to disk and will be lost on application restart
+  - "Clear History" menu item has no action - functionality coming in future release
+  - No visible UI panel to view or manage bookmarks and history
 
 ---
 

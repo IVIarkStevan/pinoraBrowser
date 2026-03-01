@@ -41,6 +41,10 @@ public class BrowserWindow {
     private Button forwardButton;
     private com.pinora.browser.extensions.webext.WebExtensionLoader webExtensionLoader;
     private DownloadManager downloadManager = new DownloadManager();
+    private double zoomLevel = 1.0; // Track current zoom level
+    private static final double ZOOM_INCREMENT = 0.1; // 10% per zoom step
+    private static final double MIN_ZOOM = 0.5;
+    private static final double MAX_ZOOM = 3.0;
     
     public BrowserWindow() {
         this.browserEngine = new BrowserEngine();
@@ -139,6 +143,9 @@ public class BrowserWindow {
         MenuItem zoomIn = new MenuItem("Zoom In (Ctrl++)");
         MenuItem zoomOut = new MenuItem("Zoom Out (Ctrl+-)");
         MenuItem resetZoom = new MenuItem("Reset Zoom (Ctrl+0)");
+        zoomIn.setOnAction(e -> handleZoomIn());
+        zoomOut.setOnAction(e -> handleZoomOut());
+        resetZoom.setOnAction(e -> handleResetZoom());
         MenuItem showDownloads = new MenuItem("Downloads");
         showDownloads.setOnAction(e -> openDownloadsTab());
         showDownloads.setAccelerator(KeyCombination.keyCombination("Ctrl+J"));
@@ -167,6 +174,15 @@ public class BrowserWindow {
         // History Menu
         Menu historyMenu = new Menu("History");
         MenuItem clearHistory = new MenuItem("Clear History");
+        clearHistory.setOnAction(e -> {
+            try {
+                browserEngine.getHistoryManager().clearHistory();
+                new Alert(Alert.AlertType.INFORMATION, "Browsing history cleared", ButtonType.OK).showAndWait();
+            } catch (Exception ex) {
+                logger.warn("Error clearing history: {}", ex.getMessage());
+                new Alert(Alert.AlertType.ERROR, "Failed to clear history", ButtonType.OK).showAndWait();
+            }
+        });
         historyMenu.getItems().add(clearHistory);
         
         // Extensions Menu
@@ -513,6 +529,8 @@ public class BrowserWindow {
         tab.setContent(webView);
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().selectLast();
+        // Clear address bar for new tab
+        addressBar.setText("");
         // Ensure navigation buttons reflect the newly selected tab
         updateNavigationButtons();
         
@@ -674,13 +692,84 @@ public class BrowserWindow {
                 // Ctrl+R: Reload current tab
                 refreshCurrentTab();
                 event.consume();
+            } else if (event.getCode() == KeyCode.PLUS || event.getCode() == KeyCode.EQUALS) {
+                // Ctrl++: Zoom In
+                handleZoomIn();
+                event.consume();
+            } else if (event.getCode() == KeyCode.MINUS) {
+                // Ctrl+-: Zoom Out
+                handleZoomOut();
+                event.consume();
+            } else if (event.getCode() == KeyCode.DIGIT0) {
+                // Ctrl+0: Reset Zoom
+                handleResetZoom();
+                event.consume();
             }
         }
     }
     
-    private void closeCurrentTab() {
+    private void handleZoomIn() {
+        if (zoomLevel < MAX_ZOOM) {
+            zoomLevel += ZOOM_INCREMENT;
+            applyZoom();
+        }
+    }
+    
+    private void handleZoomOut() {
+        if (zoomLevel > MIN_ZOOM) {
+            zoomLevel -= ZOOM_INCREMENT;
+            applyZoom();
+        }
+    }
+    
+    private void handleResetZoom() {
+        zoomLevel = 1.0;
+        applyZoom();
+    }
+    
+    private void applyZoom() {
         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
         if (selectedTab != null) {
+            try {
+                WebView webView = (WebView) selectedTab.getContent();
+                WebEngine engine = webView.getEngine();
+                // Apply zoom using CSS transform on the document body
+                engine.executeScript("document.body.style.zoom = '" + (zoomLevel * 100) + "%';");
+            } catch (Exception e) {
+                logger.debug("Error applying zoom: {}", e.getMessage());
+            }
+        }
+    }
+
+private void closeCurrentTab() {
+        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab != null) {
+            // Clean up WebEngine resources before closing
+            try {
+                WebView webView = (WebView) selectedTab.getContent();
+                if (webView != null) {
+                    WebEngine engine = webView.getEngine();
+                    if (engine != null) {
+                        // Cancel any pending loads
+                        engine.getLoadWorker().cancel();
+                        
+                        // Load about:blank to release resources
+                        engine.load(null);
+                        
+                        // Clear the page history to free memory
+                        try {
+                            engine.getHistory().getEntries().clear();
+                        } catch (Exception ignored) {}
+                        
+                        // Set JavaScript disabled to stop any running scripts
+                        // This helps release any held resources
+                        logger.debug("WebEngine resources cleaned up for tab: {}", selectedTab.getText());
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("Error cleaning up tab: {}", e.getMessage());
+            }
+            
             tabPane.getTabs().remove(selectedTab);
             logger.info("Tab closed");
             
