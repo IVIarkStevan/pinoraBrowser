@@ -7,6 +7,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import com.pinora.browser.core.CookieManager;
+import com.pinora.browser.util.ConfigManager;
+import com.pinora.browser.util.SearchEngine;
 
 /**
  * Preferences/Settings dialog
@@ -66,14 +68,22 @@ public class PreferencesDialog {
         content.setPadding(new Insets(10));
         
         CheckBox showBookmarks = new CheckBox("Show bookmarks bar on startup");
-        showBookmarks.setSelected(true);
+        showBookmarks.setSelected(ConfigManager.isShowBookmarksBar());
+        showBookmarks.setOnAction(e -> ConfigManager.setShowBookmarksBar(showBookmarks.isSelected()));
         
         CheckBox restoreTabs = new CheckBox("Restore tabs from last session");
-        restoreTabs.setSelected(true);
+        restoreTabs.setSelected(ConfigManager.isRestoreTabsFromLastSession());
+        restoreTabs.setOnAction(e -> ConfigManager.setRestoreTabsFromLastSession(restoreTabs.isSelected()));
         
         Label homePageLabel = new Label("Home page:");
-        TextField homePageField = new TextField("https://www.google.com");
+        TextField homePageField = new TextField(ConfigManager.getHomePage());
         homePageField.setPrefHeight(30);
+        homePageField.setOnAction(e -> ConfigManager.setHomePage(homePageField.getText()));
+        homePageField.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal) {
+                ConfigManager.setHomePage(homePageField.getText());
+            }
+        });
         
         content.getChildren().addAll(
             showBookmarks, restoreTabs, homePageLabel, homePageField
@@ -89,13 +99,16 @@ public class PreferencesDialog {
         content.setPadding(new Insets(10));
         
         CheckBox doNotTrack = new CheckBox("Send Do Not Track signal");
-        doNotTrack.setSelected(true);
+        doNotTrack.setSelected(ConfigManager.isDoNotTrackEnabled());
+        doNotTrack.setOnAction(e -> ConfigManager.setDoNotTrackEnabled(doNotTrack.isSelected()));
         
         CheckBox blockTracking = new CheckBox("Block tracking cookies");
-        blockTracking.setSelected(true);
+        blockTracking.setSelected(ConfigManager.isBlockTrackingCookies());
+        blockTracking.setOnAction(e -> ConfigManager.setBlockTrackingCookies(blockTracking.isSelected()));
         
         CheckBox clearOnExit = new CheckBox("Clear history on exit");
-        clearOnExit.setSelected(false);
+        clearOnExit.setSelected(ConfigManager.isClearHistoryOnExit());
+        clearOnExit.setOnAction(e -> ConfigManager.setClearHistoryOnExit(clearOnExit.isSelected()));
         
         Button clearNow = new Button("Clear History Now");
         clearNow.setStyle("-fx-padding: 8 15;");
@@ -117,16 +130,20 @@ public class PreferencesDialog {
         cookieHeaderLabel.setStyle("-fx-font-weight: bold;");
         
         CheckBox acceptCookies = new CheckBox("Accept cookies");
-        acceptCookies.setSelected(true);
+        acceptCookies.setSelected(ConfigManager.isAcceptCookies());
+        acceptCookies.setOnAction(e -> ConfigManager.setAcceptCookies(acceptCookies.isSelected()));
         
         CheckBox blockThirdParty = new CheckBox("Block third-party cookies");
-        blockThirdParty.setSelected(true);
+        blockThirdParty.setSelected(ConfigManager.isBlockThirdPartyCookies());
+        blockThirdParty.setOnAction(e -> ConfigManager.setBlockThirdPartyCookies(blockThirdParty.isSelected()));
         
         CheckBox blockTracking = new CheckBox("Block tracking cookies");
-        blockTracking.setSelected(true);
+        blockTracking.setSelected(ConfigManager.isBlockTrackingCookies());
+        blockTracking.setOnAction(e -> ConfigManager.setBlockTrackingCookies(blockTracking.isSelected()));
         
         CheckBox saveCookies = new CheckBox("Save cookies between sessions");
-        saveCookies.setSelected(true);
+        saveCookies.setSelected(ConfigManager.isSaveCookiesBetweenSessions());
+        saveCookies.setOnAction(e -> ConfigManager.setSaveCookiesBetweenSessions(saveCookies.isSelected()));
         
         Label cookieInfoLabel = new Label("Persistent cookies will be saved to disk and restored on browser restart.\nSession cookies are cleared when you close the browser.");
         cookieInfoLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 10;");
@@ -159,13 +176,23 @@ public class PreferencesDialog {
         Label searchEngineLabel = new Label("Default search engine:");
         ComboBox<String> searchEngineCombo = new ComboBox<>();
         searchEngineCombo.getItems().addAll(
-            "Google",
-            "DuckDuckGo",
-            "Bing",
-            "Wikipedia",
-            "StartPage"
+            SearchEngine.GOOGLE.getDisplayName(),
+            SearchEngine.DUCKDUCKGO.getDisplayName(),
+            SearchEngine.BING.getDisplayName(),
+            SearchEngine.WIKIPEDIA.getDisplayName(),
+            SearchEngine.STARTPAGE.getDisplayName()
         );
-        searchEngineCombo.setValue("Google");
+        
+        // Set current selection from config
+        SearchEngine currentEngine = ConfigManager.getDefaultSearchEngine();
+        searchEngineCombo.setValue(currentEngine.getDisplayName());
+        
+        // Save selection when changed
+        searchEngineCombo.setOnAction(e -> {
+            String selected = searchEngineCombo.getValue();
+            SearchEngine engine = SearchEngine.fromDisplayName(selected);
+            ConfigManager.setDefaultSearchEngine(engine);
+        });
         
         content.getChildren().addAll(searchEngineLabel, searchEngineCombo);
         
