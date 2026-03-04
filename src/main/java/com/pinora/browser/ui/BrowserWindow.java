@@ -45,8 +45,8 @@ public class BrowserWindow {
     private Button forwardButton;
     private BookmarkHistoryPanel bookmarkHistoryPanel;
     private BookmarksBar bookmarksBar;
-    private SplitPane contentSplitPane;
-    private Button toggleSidebarButton;
+    private Stage bookmarksPanelStage;
+    private Stage historyPanelStage;
     private com.pinora.browser.extensions.webext.WebExtensionLoader webExtensionLoader;
     private DownloadManager downloadManager = new DownloadManager();
     private double zoomLevel = 1.0; // Track current zoom level
@@ -203,17 +203,30 @@ public class BrowserWindow {
         
         // History Menu
         Menu historyMenu = new Menu("History");
+        MenuItem viewHistory = new MenuItem("View History (Ctrl+H)");
+        viewHistory.setOnAction(e -> openHistoryPanel());
+        viewHistory.setAccelerator(KeyCombination.keyCombination("Ctrl+H"));
         MenuItem clearHistory = new MenuItem("Clear History");
         clearHistory.setOnAction(e -> {
             try {
                 browserEngine.getHistoryManager().clearHistory();
+                if (historyPanelStage != null && historyPanelStage.isShowing()) {
+                    bookmarkHistoryPanel.refresh();
+                }
                 new Alert(Alert.AlertType.INFORMATION, "Browsing history cleared", ButtonType.OK).showAndWait();
             } catch (Exception ex) {
                 logger.warn("Error clearing history: {}", ex.getMessage());
                 new Alert(Alert.AlertType.ERROR, "Failed to clear history", ButtonType.OK).showAndWait();
             }
         });
-        historyMenu.getItems().add(clearHistory);
+        historyMenu.getItems().addAll(viewHistory, clearHistory);
+        
+        // Bookmarks Menu
+        Menu bookmarksMenu = new Menu("Bookmarks");
+        MenuItem viewBookmarks = new MenuItem("View Bookmarks (Ctrl+B)");
+        viewBookmarks.setOnAction(e -> openBookmarksPanel());
+        viewBookmarks.setAccelerator(KeyCombination.keyCombination("Ctrl+B"));
+        bookmarksMenu.getItems().add(viewBookmarks);
         
         // Extensions Menu
         Menu extensionsMenu = new Menu("Extensions");
@@ -246,7 +259,7 @@ public class BrowserWindow {
         about.setOnAction(e -> showAboutDialog());
         helpMenu.getItems().add(about);
 
-        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, historyMenu, extensionsMenu, toolsMenu, helpMenu);
+        menuBar.getMenus().addAll(fileMenu, editMenu, viewMenu, bookmarksMenu, historyMenu, extensionsMenu, toolsMenu, helpMenu);
         return menuBar;
     }
     
@@ -271,19 +284,16 @@ public class BrowserWindow {
         // Restore tabs from session or create new tab
         restoreOrCreateTabs();
         
-        // Initialize BookmarkHistoryPanel
+        // Initialize BookmarkHistoryPanel (not added to main content, used for modal windows)
         bookmarkHistoryPanel = new BookmarkHistoryPanel(
             browserEngine.getBookmarkManager(),
             browserEngine.getHistoryManager(),
             this
         );
         
-        // Create SplitPane with WebView and Sidebar
-        contentSplitPane = new SplitPane(tabPane, bookmarkHistoryPanel);
-        contentSplitPane.setDividerPosition(0, 0.85); // 85% for content, 15% for sidebar
-        
-        mainContent.getChildren().add(contentSplitPane);
-        VBox.setVgrow(contentSplitPane, javafx.scene.layout.Priority.ALWAYS);
+        // Just add the tab pane directly without the sidebar
+        mainContent.getChildren().add(tabPane);
+        VBox.setVgrow(tabPane, javafx.scene.layout.Priority.ALWAYS);
         
         return mainContent;
     }
@@ -319,12 +329,6 @@ public class BrowserWindow {
         homeButton.setStyle("-fx-font-size: 14;");
         homeButton.setOnAction(e -> navigateToHome());
         
-        // Sidebar Toggle Button
-        toggleSidebarButton = new Button("☰");
-        toggleSidebarButton.setPrefWidth(40);
-        toggleSidebarButton.setStyle("-fx-font-size: 14;");
-        toggleSidebarButton.setOnAction(e -> toggleSidebar());
-        
         // Address Bar - URLs only
         addressBar = new TextField();
         addressBar.setPromptText("Enter URL or search...");
@@ -345,7 +349,7 @@ public class BrowserWindow {
         extensionBar.setStyle("-fx-padding: 0; -fx-border-width: 0;");
         
         toolbar.getChildren().addAll(
-            backButton, forwardButton, refreshButton, homeButton, toggleSidebarButton, addressBar, searchBar, extensionBar
+            backButton, forwardButton, refreshButton, homeButton, addressBar, searchBar, extensionBar
         );
         
         HBox.setHgrow(addressBar, javafx.scene.layout.Priority.ALWAYS);
@@ -803,6 +807,14 @@ public class BrowserWindow {
                 // Ctrl+J: Open Downloads
                 openDownloadsTab();
                 event.consume();
+            } else if (event.getCode() == KeyCode.B) {
+                // Ctrl+B: Open Bookmarks
+                openBookmarksPanel();
+                event.consume();
+            } else if (event.getCode() == KeyCode.H) {
+                // Ctrl+H: Open History
+                openHistoryPanel();
+                event.consume();
             } else if (event.getCode() == KeyCode.Q) {
                 // Ctrl+Q: Quit Application
                 stage.close();
@@ -916,19 +928,63 @@ private void closeCurrentTab() {
     }
     
     /**
-     * Toggle the bookmark/history sidebar visibility
+     * Open bookmarks panel in a separate window
      */
-    private void toggleSidebar() {
-        if (contentSplitPane.getItems().contains(bookmarkHistoryPanel)) {
-            contentSplitPane.getItems().remove(bookmarkHistoryPanel);
-            toggleSidebarButton.setStyle("-fx-font-size: 14; -fx-opacity: 0.5;");
-            logger.debug("Sidebar hidden");
-        } else {
-            contentSplitPane.getItems().add(bookmarkHistoryPanel);
-            contentSplitPane.setDividerPosition(0, 0.85);
-            toggleSidebarButton.setStyle("-fx-font-size: 14;");
-            logger.debug("Sidebar shown");
+    private void openBookmarksPanel() {
+        if (bookmarksPanelStage != null && bookmarksPanelStage.isShowing()) {
+            bookmarksPanelStage.toFront();
+            return;
         }
+        
+        bookmarksPanelStage = new Stage();
+        bookmarksPanelStage.setTitle("Bookmarks");
+        bookmarksPanelStage.setWidth(400);
+        bookmarksPanelStage.setHeight(500);
+        
+        // Create a new BookmarkHistoryPanel instance for this window
+        BookmarkHistoryPanel bookmarksPanel = new BookmarkHistoryPanel(
+            browserEngine.getBookmarkManager(),
+            browserEngine.getHistoryManager(),
+            this
+        );
+        bookmarksPanel.refresh();
+        
+        // Select the bookmarks tab
+        bookmarksPanel.selectBookmarksTab();
+        
+        Scene scene = new Scene(bookmarksPanel);
+        bookmarksPanelStage.setScene(scene);
+        bookmarksPanelStage.show();
+    }
+    
+    /**
+     * Open history panel in a separate window
+     */
+    private void openHistoryPanel() {
+        if (historyPanelStage != null && historyPanelStage.isShowing()) {
+            historyPanelStage.toFront();
+            return;
+        }
+        
+        historyPanelStage = new Stage();
+        historyPanelStage.setTitle("History");
+        historyPanelStage.setWidth(400);
+        historyPanelStage.setHeight(500);
+        
+        // Create a new BookmarkHistoryPanel instance for this window
+        BookmarkHistoryPanel historyPanel = new BookmarkHistoryPanel(
+            browserEngine.getBookmarkManager(),
+            browserEngine.getHistoryManager(),
+            this
+        );
+        historyPanel.refresh();
+        
+        // Select the history tab
+        historyPanel.selectHistoryTab();
+        
+        Scene scene = new Scene(historyPanel);
+        historyPanelStage.setScene(scene);
+        historyPanelStage.show();
     }
     
     /**

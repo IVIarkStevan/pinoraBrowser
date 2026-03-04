@@ -73,7 +73,11 @@ public class BookmarkHistoryPanel extends VBox {
         Button addBookmarkBtn = new Button("Add Bookmark");
         addBookmarkBtn.setPrefWidth(Double.MAX_VALUE);
         addBookmarkBtn.setStyle("-fx-padding: 5;");
-        addBookmarkBtn.setOnAction(e -> addCurrentPageAsBookmark());
+        addBookmarkBtn.setFocusTraversable(false);
+        addBookmarkBtn.setOnAction(e -> {
+            addCurrentPageAsBookmark();
+            e.consume();
+        });
         
         // Bookmarks list
         bookmarkList = new ListView<>();
@@ -114,7 +118,11 @@ public class BookmarkHistoryPanel extends VBox {
         Button clearHistoryBtn = new Button("Clear History");
         clearHistoryBtn.setPrefWidth(Double.MAX_VALUE);
         clearHistoryBtn.setStyle("-fx-padding: 5;");
-        clearHistoryBtn.setOnAction(e -> clearHistoryConfirm());
+        clearHistoryBtn.setFocusTraversable(false);
+        clearHistoryBtn.setOnAction(e -> {
+            clearHistoryConfirm();
+            e.consume();
+        });
         
         // History list
         historyList = new ListView<>();
@@ -280,6 +288,24 @@ public class BookmarkHistoryPanel extends VBox {
     }
     
     /**
+     * Select the bookmarks tab (bring it to front)
+     */
+    public void selectBookmarksTab() {
+        if (tabPane != null && tabPane.getTabs().size() > 0) {
+            tabPane.getSelectionModel().select(0);
+        }
+    }
+    
+    /**
+     * Select the history tab (bring it to front)
+     */
+    public void selectHistoryTab() {
+        if (tabPane != null && tabPane.getTabs().size() > 1) {
+            tabPane.getSelectionModel().select(1);
+        }
+    }
+    
+    /**
      * Data class for bookmark/history items
      */
     public static class BookmarkHistoryItem {
@@ -349,19 +375,23 @@ public class BookmarkHistoryPanel extends VBox {
             Button openBtn = new Button("Open");
             openBtn.setStyle("-fx-font-size: 9; -fx-padding: 2 5;");
             openBtn.setPrefWidth(60);
+            openBtn.setFocusTraversable(false);
             openBtn.setOnAction(e -> {
                 if (panel != null) {
                     panel.navigateToUrl(item.url);
                 }
+                e.consume();
             });
             
             Button deleteBtn = new Button("Delete");
             deleteBtn.setStyle("-fx-font-size: 9; -fx-padding: 2 5;");
             deleteBtn.setPrefWidth(60);
+            deleteBtn.setFocusTraversable(false);
             deleteBtn.setOnAction(e -> {
                 if (panel != null) {
                     panel.removeItem(item);
                 }
+                e.consume();
             });
             
             actionBox.getChildren().addAll(openBtn, deleteBtn);

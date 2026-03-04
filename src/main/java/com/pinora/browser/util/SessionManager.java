@@ -1,4 +1,4 @@
-package com.pinora.browser.util;
+ckage com.pinora.browser.util;
 
 import java.io.File;
 import java.io.FileReader;
