@@ -9,14 +9,18 @@ import javafx.stage.Stage;
 import com.pinora.browser.core.CookieManager;
 import com.pinora.browser.util.ConfigManager;
 import com.pinora.browser.util.SearchEngine;
+import com.pinora.browser.util.SearchSuggestionsManager;
 
 /**
  * Preferences/Settings dialog
  */
 public class PreferencesDialog {
     
+    private SearchSuggestionsManager suggestionsManager;
+    
     public PreferencesDialog(CookieManager cookieManager) {
         // Constructor accepts cookieManager for potential future use
+        this.suggestionsManager = new SearchSuggestionsManager();
     }
     
     public void show(Stage owner) {
@@ -40,7 +44,7 @@ public class PreferencesDialog {
         TitledPane cookiePane = createCookieSettings(preferencesStage);
         
         // Search Settings
-        TitledPane searchPane = createSearchSettings();
+        TitledPane searchPane = createSearchSettings(suggestionsManager);
         
         Accordion accordion = new Accordion();
         accordion.getPanes().addAll(generalPane, privacyPane, cookiePane, searchPane);
@@ -169,7 +173,7 @@ public class PreferencesDialog {
         return pane;
     }
     
-    private static TitledPane createSearchSettings() {
+    private TitledPane createSearchSettings(SearchSuggestionsManager suggestionsManager) {
         VBox content = new VBox(10);
         content.setPadding(new Insets(10));
         
@@ -194,7 +198,29 @@ public class PreferencesDialog {
             ConfigManager.setDefaultSearchEngine(engine);
         });
         
-        content.getChildren().addAll(searchEngineLabel, searchEngineCombo);
+        Button clearSearchHistory = new Button("Clear Search History");
+        clearSearchHistory.setStyle("-fx-padding: 8 15;");
+        clearSearchHistory.setOnAction(e -> {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Clear Search History");
+            confirm.setHeaderText("Clear all search history?");
+            confirm.setContentText("This will permanently delete all saved searches. This action cannot be undone.");
+            
+            if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                suggestionsManager.clearSearchHistory();
+                Alert info = new Alert(Alert.AlertType.INFORMATION);
+                info.setTitle("Search History Cleared");
+                info.setHeaderText(null);
+                info.setContentText("Search history has been cleared successfully.");
+                info.showAndWait();
+            }
+        });
+        
+        content.getChildren().addAll(
+            searchEngineLabel, searchEngineCombo,
+            new Separator(),
+            clearSearchHistory
+        );
         
         TitledPane pane = new TitledPane("Search", content);
         pane.setCollapsible(false);

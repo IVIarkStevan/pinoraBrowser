@@ -1,6 +1,7 @@
 package com.pinora.browser.ui;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
@@ -19,6 +20,7 @@ import com.pinora.browser.core.CookieInterceptor;
 import com.pinora.browser.util.ConfigManager;
 import com.pinora.browser.util.SearchEngine;
 import com.pinora.browser.util.SessionManager;
+import com.pinora.browser.util.SearchSuggestionsManager;
 import com.pinora.browser.extensions.ExtensionManager;
 import com.pinora.browser.extensions.webext.installer.WebExtensionInstaller;
 import org.slf4j.Logger;
@@ -37,8 +39,12 @@ public class BrowserWindow {
     private Scene scene;
     private TabPane tabPane;
     private TextField addressBar;
-    private TextField searchBar;
+    private SearchAutocompleteField searchBar;
     private BrowserEngine browserEngine;
+    private SearchSuggestionsManager suggestionsManager;
+    private DeveloperConsole developerConsole;
+    private SplitPane mainSplitPane;
+    private CheckMenuItem showDeveloperConsoleMenuItem;
     private ExtensionManager extensionManager;
     private CookieInterceptor cookieInterceptor;
     private Button backButton;
@@ -54,10 +60,19 @@ public class BrowserWindow {
     private static final double MIN_ZOOM = 0.5;
     private static final double MAX_ZOOM = 3.0;
     
+    // Invidious instances for YouTube redirect (better video quality in JavaFX WebView)
+    private static final String[] INVIDIOUS_INSTANCES = {
+        "https://yewtu.be",
+        "https://invidious.snopyta.org",
+        "https://invidious.kavin.rocks"
+    };
+    
     public BrowserWindow() {
         this.browserEngine = new BrowserEngine();
         this.extensionManager = new ExtensionManager();
         this.cookieInterceptor = new CookieInterceptor(browserEngine.getCookieManager());
+        this.suggestionsManager = new SearchSuggestionsManager();
+        this.developerConsole = new DeveloperConsole();
     }
 
     public ExtensionManager getExtensionManager() {
@@ -193,11 +208,22 @@ public class BrowserWindow {
         showBookmarksBar.setOnAction(e -> toggleBookmarksBarVisibility(showBookmarksBar.isSelected()));
         showBookmarksBar.setAccelerator(KeyCombination.keyCombination("Ctrl+Shift+B"));
         
+        // Developer Console toggle
+        showDeveloperConsoleMenuItem = new CheckMenuItem("Developer Console");
+        showDeveloperConsoleMenuItem.setSelected(false);
+        showDeveloperConsoleMenuItem.setOnAction(e -> {
+            developerConsole.setVisible(showDeveloperConsoleMenuItem.isSelected());
+            developerConsole.setManaged(showDeveloperConsoleMenuItem.isSelected());
+        });
+        showDeveloperConsoleMenuItem.setAccelerator(KeyCombination.keyCombination("F12"));
+        
         viewMenu.getItems().addAll(zoomIn, zoomOut, new SeparatorMenuItem(), resetZoom);
         viewMenu.getItems().add(new SeparatorMenuItem());
         viewMenu.getItems().add(showBookmarksBar);
         viewMenu.getItems().add(new SeparatorMenuItem());
         viewMenu.getItems().add(darkMode);
+        viewMenu.getItems().add(new SeparatorMenuItem());
+        viewMenu.getItems().add(showDeveloperConsoleMenuItem);
         viewMenu.getItems().add(new SeparatorMenuItem());
         viewMenu.getItems().add(showDownloads);
         
@@ -291,9 +317,17 @@ public class BrowserWindow {
             this
         );
         
-        // Just add the tab pane directly without the sidebar
-        mainContent.getChildren().add(tabPane);
-        VBox.setVgrow(tabPane, javafx.scene.layout.Priority.ALWAYS);
+        // Add tab pane and developer console in a split pane
+        mainSplitPane = new SplitPane(tabPane, developerConsole);
+        mainSplitPane.setOrientation(Orientation.VERTICAL);
+        mainSplitPane.setDividerPosition(0, 0.85);
+        
+        mainContent.getChildren().add(mainSplitPane);
+        VBox.setVgrow(mainSplitPane, javafx.scene.layout.Priority.ALWAYS);
+        
+        // Hide console by default
+        developerConsole.setVisible(false);
+        developerConsole.setManaged(false);
         
         return mainContent;
     }
@@ -336,13 +370,10 @@ public class BrowserWindow {
         addressBar.setStyle("-fx-font-size: 12; -fx-padding: 5;");
         addressBar.setOnAction(e -> navigateToAddress());
         
-        // Search Bar - Dedicated search functionality
-        searchBar = new TextField();
-        searchBar.setPromptText("Search...");
+        // Search Bar - Dedicated search functionality with autocomplete
+        searchBar = new SearchAutocompleteField(suggestionsManager);
         searchBar.setPrefWidth(180);
-        searchBar.setPrefHeight(30);
-        searchBar.setStyle("-fx-font-size: 12; -fx-padding: 5;");
-        searchBar.setOnAction(e -> performSearch());
+        searchBar.setOnSearch(this::performSearch);
         
         // Extension Icon Bar
         ExtensionIconBar extensionBar = new ExtensionIconBar(webExtensionLoader);
@@ -392,6 +423,35 @@ public class BrowserWindow {
         engine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
                 try {
+                    // Setup console messenger for this page
+                    JSConsoleMessenger consoleMessenger = new JSConsoleMessenger(developerConsole);
+                    
+                    // Make the messenger accessible to JavaScript
+                    try {
+                        netscape.javascript.JSObject window = (netscape.javascript.JSObject) engine.executeScript("window");
+                        window.setMember("_pinerConsoleMessenger", consoleMessenger);
+                    } catch (Exception e) {
+                        logger.debug("Could not set JS member via netscape.javascript: {}", e.getMessage());
+                        // Fallback: try direct script evaluation
+                        logger.debug("Using fallback console interception method");
+                    }
+                    
+                    // Inject console interceptor
+                    String consoleScript = "(function(){"
+                        + "if(window._consoleIntercepted) return;"
+                        + "window._consoleIntercepted=true;"
+                        + "var orig={log:console.log,info:console.info,warn:console.warn,error:console.error,debug:console.debug};"
+                        + "if(window._pinerConsoleMessenger){"
+                        + "console.log=function(){_pinerConsoleMessenger.log(Array.from(arguments).map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '));orig.log.apply(console,arguments)};"
+                        + "console.info=function(){_pinerConsoleMessenger.info(Array.from(arguments).map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '));orig.info.apply(console,arguments)};"
+                        + "console.warn=function(){_pinerConsoleMessenger.warn(Array.from(arguments).map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '));orig.warn.apply(console,arguments)};"
+                        + "console.error=function(){_pinerConsoleMessenger.error(Array.from(arguments).map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '));orig.error.apply(console,arguments)};"
+                        + "console.debug=function(){_pinerConsoleMessenger.debug(Array.from(arguments).map(a=>typeof a==='object'?JSON.stringify(a):a).join(' '));orig.debug.apply(console,arguments)};"
+                        + "}"
+                        + "window.addEventListener('error',function(e){if(window._pinerConsoleMessenger) _pinerConsoleMessenger.error('Uncaught: '+e.message);});"
+                        + "})();";
+                    engine.executeScript(consoleScript);
+                    
                     // Initialize AudioContext with native system sample rate for proper audio playback
                     // Using system's native sample rate prevents audio speed/pitch issues
                     String audioInitScript = "if(window.AudioContext){"
@@ -408,8 +468,22 @@ public class BrowserWindow {
                         + "  }"
                         + "}";
                     engine.executeScript(audioInitScript);
+                    
+                    // Force YouTube to use legacy player for better compatibility
+                    String youtubeScript = "if(window.location.hostname.includes('youtube.com')){"
+                        + "  // Try to force higher quality by setting quality levels"
+                        + "  window.addEventListener('load', function(){"
+                        + "    // Override player settings for better quality"
+                        + "    try{"
+                        + "      localStorage.setItem('yt-player-quality', 'hd1080');"
+                        + "      localStorage.setItem('yt-player-auto', '0');"
+                        + "    }catch(e){}"
+                        + "  });"
+                        + "  console.log('[Pinora] YouTube compatibility mode enabled');"
+                        + "}";
+                    engine.executeScript(youtubeScript);
                 } catch (Exception e) {
-                    logger.debug("Failed to inject audio initialization: {}", e.getMessage());
+                    logger.debug("Failed to inject console or audio initialization: {}", e.getMessage());
                 }
             }
         });
@@ -652,6 +726,9 @@ public class BrowserWindow {
             }
             addressBar.setText(url);
             
+            // Convert YouTube URLs to Invidious for better video quality
+            url = convertToInvidiousUrl(url);
+            
             Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
             if (selectedTab != null) {
                 WebView webView = (WebView) selectedTab.getContent();
@@ -836,7 +913,21 @@ public class BrowserWindow {
                 handleResetZoom();
                 event.consume();
             }
+        } else if (event.getCode() == KeyCode.F12) {
+            // F12: Toggle Developer Console
+            toggleDeveloperConsole();
+            event.consume();
         }
+    }
+    
+    private void toggleDeveloperConsole() {
+        boolean isVisible = developerConsole.isVisible();
+        developerConsole.setVisible(!isVisible);
+        developerConsole.setManaged(!isVisible);
+        if (showDeveloperConsoleMenuItem != null) {
+            showDeveloperConsoleMenuItem.setSelected(!isVisible);
+        }
+        logger.info("Developer Console toggled: {}", !isVisible);
     }
     
     /**
@@ -1042,6 +1133,9 @@ private void closeCurrentTab() {
         if (url == null || url.isEmpty()) {
             return;
         }
+        
+        // Convert YouTube URLs to Invidious for better video quality
+        url = convertToInvidiousUrl(url);
         
         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
         if (selectedTab != null) {
@@ -1311,6 +1405,64 @@ private void closeCurrentTab() {
         } catch (Exception e) {
             logger.error("Error saving session: {}", e.getMessage());
         }
+    }
+    
+    /**
+     * Convert YouTube URL to Invidious URL for better video quality in JavaFX WebView
+     * Invidious is an open-source frontend that works better with limited codec support
+     * 
+     * @param url The original URL
+     * @return Converted URL or original if not a YouTube URL
+     */
+    private String convertToInvidiousUrl(String url) {
+        if (url == null || !url.contains("youtube.com")) {
+            return url;
+        }
+        
+        try {
+            // Extract video ID from various YouTube URL formats
+            String videoId = null;
+            
+            if (url.contains("youtube.com/watch")) {
+                // Standard: youtube.com/watch?v=VIDEO_ID
+                java.net.URL parsedUrl = new java.net.URL(url);
+                java.net.URI uri = new java.net.URI(url);
+                String query = parsedUrl.getQuery();
+                if (query != null) {
+                    for (String param : query.split("&")) {
+                        if (param.startsWith("v=")) {
+                            videoId = param.substring(2);
+                            break;
+                        }
+                    }
+                }
+            } else if (url.contains("youtu.be/")) {
+                // Short: youtu.be/VIDEO_ID
+                int idx = url.indexOf("youtu.be/") + 9;
+                String rest = url.substring(idx);
+                int endIdx = rest.indexOf("?");
+                if (endIdx == -1) endIdx = rest.length();
+                videoId = rest.substring(0, endIdx);
+            } else if (url.contains("youtube.com/embed/")) {
+                // Embed: youtube.com/embed/VIDEO_ID
+                int idx = url.indexOf("youtube.com/embed/") + 17;
+                String rest = url.substring(idx);
+                int endIdx = rest.indexOf("?");
+                if (endIdx == -1) endIdx = rest.length();
+                videoId = rest.substring(0, endIdx);
+            }
+            
+            if (videoId != null && !videoId.isEmpty()) {
+                // Use first Invidious instance (most reliable)
+                String invidiousUrl = INVIDIOUS_INSTANCES[0] + "/watch?v=" + videoId;
+                logger.info("Converting YouTube URL to Invidious: {} -> {}", url, invidiousUrl);
+                return invidiousUrl;
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to convert YouTube URL to Invidious: {}", e.getMessage());
+        }
+        
+        return url;
     }
 }
 
