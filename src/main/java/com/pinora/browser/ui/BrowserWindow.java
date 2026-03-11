@@ -436,6 +436,40 @@ public class BrowserWindow {
                         logger.debug("Using fallback console interception method");
                     }
                     
+                    // Inject Cloudflare compatibility shim
+                    String cloudflareScript = "(function(){"
+                        + "if(window._cloudflareFix) return;"
+                        + "window._cloudflareFix=true;"
+                        + "if(!window.navigator.webdriver) Object.defineProperty(navigator,'webdriver',{get:()=>false});"
+                        + "if(!window.navigator.plugins || window.navigator.plugins.length===0){"
+                        + "  try{"
+                        + "    Object.defineProperty(navigator,'plugins',{"
+                        + "      get:()=>[{name:'Chrome PDF Plugin'},{name:'Chrome PDF Viewer'},{name:'Native Client Executable'}]"
+                        + "    });"
+                        + "  }catch(e){}"
+                        + "}"
+                        + "})();";
+                    engine.executeScript(cloudflareScript);
+                    
+                    // Enhanced fetch and XHR support for Cloudflare verification
+                    // This ensures credentials are properly sent with fetch requests
+                    String enhancedFetchScript = "(function(){"
+                        + "if(window._fetchEnhanced) return;"
+                        + "window._fetchEnhanced=true;"
+                        + "var originalFetch=window.fetch||self.fetch;"
+                        + "if(!originalFetch) {"
+                        + "  console.log('[Pinora] Fetch not available, using XMLHttpRequest polyfill');"
+                        + "  return;"
+                        + "}"
+                        + "window.fetch=function(input,init){"
+                        + "  var options=init||{};"
+                        + "  if(!options.credentials) options.credentials='include';"  // Force include credentials
+                        + "  return originalFetch.call(this,input,options);"
+                        + "};"
+                        + "console.log('[Pinora] Enhanced fetch support enabled with credentials');"
+                        + "})();";
+                    engine.executeScript(enhancedFetchScript);
+                    
                     // Inject console interceptor
                     String consoleScript = "(function(){"
                         + "if(window._consoleIntercepted) return;"
