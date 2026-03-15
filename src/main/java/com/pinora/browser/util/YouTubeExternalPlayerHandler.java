@@ -15,6 +15,11 @@ public class YouTubeExternalPlayerHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(YouTubeExternalPlayerHandler.class);
     
+    // YouTube format codes
+    public static final int FMT_480P = 18;  // 480p MPEG-4
+    public static final int FMT_720P = 22;  // 720p H.264
+    public static final int FMT_BEST = -1;  // Best available quality
+    
     private static final String VLC_WINDOWS = "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe";
     private static final String VLC_WINDOWS_ALT = "C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe";
     private static final String VLC_LINUX = "/usr/bin/vlc";
@@ -106,6 +111,15 @@ public class YouTubeExternalPlayerHandler {
      * Uses best video quality available
      */
     public void playYouTubeURL(String youtubeUrl) {
+        playYouTubeURL(youtubeUrl, FMT_BEST);
+    }
+    
+    /**
+     * Play YouTube URL with specific format
+     * @param youtubeUrl The YouTube URL
+     * @param format Format code: FMT_480P, FMT_720P, or FMT_BEST
+     */
+    public void playYouTubeURL(String youtubeUrl, int format) {
         if (!isAvailable()) {
             logger.warn("External player not available");
             return;
@@ -113,10 +127,17 @@ public class YouTubeExternalPlayerHandler {
         
         new Thread(() -> {
             try {
-                logger.info("Playing YouTube URL with external player: {}", youtubeUrl);
+                // Add format parameter to force specific quality
+                String urlWithFormat = youtubeUrl;
+                if (format == FMT_480P || format == FMT_720P) {
+                    urlWithFormat = injectFormatParameter(youtubeUrl, format);
+                    logger.info("Playing YouTube URL with fmt={}: {}", format, urlWithFormat);
+                } else {
+                    logger.info("Playing YouTube URL with best quality: {}", youtubeUrl);
+                }
                 
                 // Extract best video quality using yt-dlp
-                String streamUrl = getYouTubeStreamURL(youtubeUrl);
+                String streamUrl = getYouTubeStreamURL(urlWithFormat);
                 
                 if (streamUrl == null || streamUrl.isEmpty()) {
                     logger.error("Could not extract stream URL from YouTube");
@@ -130,6 +151,28 @@ public class YouTubeExternalPlayerHandler {
                 logger.error("Error playing YouTube video: {}", e.getMessage(), e);
             }
         }).start();
+    }
+    
+    /**
+     * Inject format parameter into YouTube URL
+     * Converts: youtube.com/watch?v=ID to youtube.com/watch?v=ID&fmt=FORMAT
+     */
+    private String injectFormatParameter(String youtubeUrl, int format) {
+        try {
+            if (youtubeUrl.contains("&fmt=")) {
+                // Replace existing fmt parameter
+                return youtubeUrl.replaceAll("&fmt=\\d+", "&fmt=" + format);
+            } else if (youtubeUrl.contains("?")) {
+                // Add fmt parameter after existing parameters
+                return youtubeUrl + "&fmt=" + format;
+            } else {
+                // Add fmt parameter as first query parameter
+                return youtubeUrl + "?fmt=" + format;
+            }
+        } catch (Exception e) {
+            logger.warn("Error injecting format parameter: {}", e.getMessage());
+            return youtubeUrl;
+        }
     }
     
     /**

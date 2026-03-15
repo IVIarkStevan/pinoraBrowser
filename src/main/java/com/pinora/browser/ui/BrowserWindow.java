@@ -664,23 +664,24 @@ public class BrowserWindow {
                             // Add YouTube external player option if applicable
                             if (com.pinora.browser.util.YouTubeExternalPlayerHandler.isYouTubeURL(url)) {
                                 cm.getItems().add(new SeparatorMenuItem());
-                                MenuItem youtubePlayer = new MenuItem("Play with VLC (HD)");
-                                youtubePlayer.setStyle("-fx-text-fill: #ff0000;"); // YouTube red
-                                youtubePlayer.setOnAction(ae -> {
-                                    if (this.youtubePlayer.isAvailable()) {
-                                        this.youtubePlayer.playYouTubeURL(url);
-                                        new Alert(Alert.AlertType.INFORMATION, 
-                                            "Launching VLC with best available quality...", 
-                                            ButtonType.OK).showAndWait();
-                                    } else {
-                                        new Alert(Alert.AlertType.WARNING,
-                                            this.youtubePlayer.getStatusMessage() + "\n\n" +
-                                            "Linux: sudo apt-get install vlc yt-dlp\n" +
-                                            "Windows: Install from videolan.org and install yt-dlp via pip",
-                                            ButtonType.OK).showAndWait();
-                                    }
-                                });
-                                cm.getItems().add(youtubePlayer);
+                                
+                                // Best quality option
+                                MenuItem youtubePlayerBest = new MenuItem("Play with VLC (Best Quality)");
+                                youtubePlayerBest.setStyle("-fx-text-fill: #ff0000;"); // YouTube red
+                                youtubePlayerBest.setOnAction(ae -> playYouTubeWithFormat(url, -1, "Best Quality"));
+                                cm.getItems().add(youtubePlayerBest);
+                                
+                                // 720p H.264 option
+                                MenuItem youtubePlayer720 = new MenuItem("Play with VLC (720p H.264)");
+                                youtubePlayer720.setStyle("-fx-text-fill: #ff4444;");
+                                youtubePlayer720.setOnAction(ae -> playYouTubeWithFormat(url, 22, "720p H.264"));
+                                cm.getItems().add(youtubePlayer720);
+                                
+                                // 480p MPEG-4 option
+                                MenuItem youtubePlayer480 = new MenuItem("Play with VLC (480p MPEG-4)");
+                                youtubePlayer480.setStyle("-fx-text-fill: #ff6666;");
+                                youtubePlayer480.setOnAction(ae -> playYouTubeWithFormat(url, 18, "480p MPEG-4"));
+                                cm.getItems().add(youtubePlayer480);
                             }
                             
                             cm.show(webView, me.getScreenX(), me.getScreenY());
@@ -977,6 +978,21 @@ public class BrowserWindow {
     private void navigateToHome() {
         addressBar.setText("https://www.google.com");
         navigateToAddress();
+    }
+    
+    private void playYouTubeWithFormat(String url, int format, String quality) {
+        if (youtubePlayer.isAvailable()) {
+            youtubePlayer.playYouTubeURL(url, format);
+            new Alert(Alert.AlertType.INFORMATION, 
+                "Launching VLC with " + quality + "...", 
+                ButtonType.OK).showAndWait();
+        } else {
+            new Alert(Alert.AlertType.WARNING,
+                youtubePlayer.getStatusMessage() + "\n\n" +
+                "Linux: sudo apt-get install vlc yt-dlp\n" +
+                "Windows: Install from videolan.org and install yt-dlp via pip",
+                ButtonType.OK).showAndWait();
+        }
     }
     
     private void refreshCurrentTab() {
