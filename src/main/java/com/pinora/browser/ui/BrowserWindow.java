@@ -21,6 +21,7 @@ import com.pinora.browser.util.ConfigManager;
 import com.pinora.browser.util.SearchEngine;
 import com.pinora.browser.util.SessionManager;
 import com.pinora.browser.util.SearchSuggestionsManager;
+import com.pinora.browser.util.YouTubeExternalPlayerHandler;
 import com.pinora.browser.extensions.ExtensionManager;
 import com.pinora.browser.extensions.webext.installer.WebExtensionInstaller;
 import org.slf4j.Logger;
@@ -47,6 +48,7 @@ public class BrowserWindow {
     private CheckMenuItem showDeveloperConsoleMenuItem;
     private ExtensionManager extensionManager;
     private CookieInterceptor cookieInterceptor;
+    private YouTubeExternalPlayerHandler youtubePlayer;
     private Button backButton;
     private Button forwardButton;
     private BookmarkHistoryPanel bookmarkHistoryPanel;
@@ -73,6 +75,7 @@ public class BrowserWindow {
         this.cookieInterceptor = new CookieInterceptor(browserEngine.getCookieManager());
         this.suggestionsManager = new SearchSuggestionsManager();
         this.developerConsole = new DeveloperConsole();
+        this.youtubePlayer = new YouTubeExternalPlayerHandler();
     }
 
     public ExtensionManager getExtensionManager() {
@@ -278,6 +281,26 @@ public class BrowserWindow {
             }
         });
         toolsMenu.getItems().add(cookieManager);
+        
+        // YouTube External Player option
+        MenuItem youtubeExternal = new MenuItem("YouTube HD Player Status...");
+        youtubeExternal.setOnAction(e -> {
+            String status = youtubePlayer.getStatusMessage();
+            String message = "YouTube HD Playback via External Player\n\n" +
+                "Status: " + status + "\n\n" +
+                "When VLC + yt-dlp are installed, right-click YouTube video links " +
+                "to play with VLC for HD/1080p+ quality.\n\n" +
+                "Installation Instructions:\n" +
+                "Linux: sudo apt-get install vlc yt-dlp\n" +
+                "Windows: \n" +
+                "  1. Download VLC from videolan.org\n" +
+                "  2. Install yt-dlp: pip install yt-dlp\n" +
+                "  3. Restart browser";
+            
+            new Alert(Alert.AlertType.INFORMATION, message, ButtonType.OK).showAndWait();
+        });
+        toolsMenu.getItems().add(new SeparatorMenuItem());
+        toolsMenu.getItems().add(youtubeExternal);
 
         // Help Menu
         Menu helpMenu = new Menu("Help");
@@ -637,6 +660,29 @@ public class BrowserWindow {
                                 tabPane.getSelectionModel().select(t);
                             });
                             cm.getItems().addAll(downloadLink, openNew);
+                            
+                            // Add YouTube external player option if applicable
+                            if (com.pinora.browser.util.YouTubeExternalPlayerHandler.isYouTubeURL(url)) {
+                                cm.getItems().add(new SeparatorMenuItem());
+                                MenuItem youtubePlayer = new MenuItem("Play with VLC (HD)");
+                                youtubePlayer.setStyle("-fx-text-fill: #ff0000;"); // YouTube red
+                                youtubePlayer.setOnAction(ae -> {
+                                    if (this.youtubePlayer.isAvailable()) {
+                                        this.youtubePlayer.playYouTubeURL(url);
+                                        new Alert(Alert.AlertType.INFORMATION, 
+                                            "Launching VLC with best available quality...", 
+                                            ButtonType.OK).showAndWait();
+                                    } else {
+                                        new Alert(Alert.AlertType.WARNING,
+                                            this.youtubePlayer.getStatusMessage() + "\n\n" +
+                                            "Linux: sudo apt-get install vlc yt-dlp\n" +
+                                            "Windows: Install from videolan.org and install yt-dlp via pip",
+                                            ButtonType.OK).showAndWait();
+                                    }
+                                });
+                                cm.getItems().add(youtubePlayer);
+                            }
+                            
                             cm.show(webView, me.getScreenX(), me.getScreenY());
                         });
                     }
