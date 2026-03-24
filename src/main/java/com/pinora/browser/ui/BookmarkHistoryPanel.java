@@ -27,6 +27,9 @@ public class BookmarkHistoryPanel extends VBox {
     private TextField bookmarkSearchField;
     private TextField historySearchField;
     
+    private Label bookmarkStats;
+    private Label historyStats;
+    
     public BookmarkHistoryPanel(BookmarkManager bookmarkManager, HistoryManager historyManager, BrowserWindow browserWindow) {
         this.bookmarkManager = bookmarkManager;
         this.historyManager = historyManager;
@@ -62,6 +65,11 @@ public class BookmarkHistoryPanel extends VBox {
         VBox bookmarksContent = new VBox(5);
         bookmarksContent.setPadding(new Insets(5));
         
+        // Stats bar
+        bookmarkStats = new Label();
+        bookmarkStats.setStyle("-fx-font-size: 10; -fx-text-fill: #666666;");
+        updateBookmarkStats();
+        
         // Search bar
         bookmarkSearchField = new TextField();
         bookmarkSearchField.setPromptText("Search bookmarks...");
@@ -88,6 +96,7 @@ public class BookmarkHistoryPanel extends VBox {
         });
         
         bookmarksContent.getChildren().addAll(
+            bookmarkStats,
             bookmarkSearchField,
             addBookmarkBtn,
             bookmarkList
@@ -106,6 +115,11 @@ public class BookmarkHistoryPanel extends VBox {
     private Tab createHistoryTab() {
         VBox historyContent = new VBox(5);
         historyContent.setPadding(new Insets(5));
+        
+        // Stats bar
+        historyStats = new Label();
+        historyStats.setStyle("-fx-font-size: 10; -fx-text-fill: #666666;");
+        updateHistoryStats();
         
         // Search bar
         historySearchField = new TextField();
@@ -133,6 +147,7 @@ public class BookmarkHistoryPanel extends VBox {
         });
         
         historyContent.getChildren().addAll(
+            historyStats,
             historySearchField,
             clearHistoryBtn,
             historyList
@@ -158,6 +173,7 @@ public class BookmarkHistoryPanel extends VBox {
             );
             bookmarkList.getItems().add(item);
         }
+        updateBookmarkStats();
     }
     
     private void refreshHistoryList() {
@@ -171,6 +187,7 @@ public class BookmarkHistoryPanel extends VBox {
             );
             historyList.getItems().add(item);
         }
+        updateHistoryStats();
     }
     
     private void filterBookmarks(String query) {
@@ -302,6 +319,26 @@ public class BookmarkHistoryPanel extends VBox {
     public void selectHistoryTab() {
         if (tabPane != null && tabPane.getTabs().size() > 1) {
             tabPane.getSelectionModel().select(1);
+        }
+    }
+    
+    /**
+     * Update bookmark statistics label
+     */
+    private void updateBookmarkStats() {
+        if (bookmarkStats != null) {
+            int count = bookmarkManager.getBookmarks().size();
+            bookmarkStats.setText(String.format("Total: %d bookmark%s", count, count == 1 ? "" : "s"));
+        }
+    }
+    
+    /**
+     * Update history statistics label
+     */
+    private void updateHistoryStats() {
+        if (historyStats != null) {
+            int count = historyManager.getHistoryCount();
+            historyStats.setText(String.format("Total: %d entr%s", count, count == 1 ? "y" : "ies"));
         }
     }
     
