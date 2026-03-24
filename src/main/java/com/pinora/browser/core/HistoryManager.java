@@ -37,6 +37,12 @@ public class HistoryManager {
     }
     
     public void addToHistory(String url) {
+        // Validate input
+        if (url == null || url.trim().isEmpty()) {
+            logger.warn("Cannot add empty URL to history");
+            return;
+        }
+        
         HistoryEntry entry = new HistoryEntry(url, LocalDateTime.now());
         history.addFirst(entry);
         
@@ -105,6 +111,105 @@ public class HistoryManager {
      */
     public int getHistoryCount() {
         return history.size();
+    }
+    
+    /**
+     * Get history entries for a specific date
+     */
+    public List<HistoryEntry> getHistoryForDate(LocalDateTime date) {
+        return history.stream()
+            .filter(e -> e.timestamp.toLocalDate().equals(date.toLocalDate()))
+            .toList();
+    }
+    
+    /**
+     * Get history entries from last N days
+     */
+    public List<HistoryEntry> getHistoryLastNDays(int days) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
+        return history.stream()
+            .filter(e -> e.timestamp.isAfter(cutoff))
+            .toList();
+    }
+    
+    /**
+     * Get most visited URLs
+     */
+    public List<String> getMostVisited(int limit) {
+        return history.stream()
+            .map(e -> e.url)
+            .distinct()
+            .limit(limit)
+            .toList();
+    }
+    
+    /**
+     * Export history to HTML file
+     */
+    public void exportToHTML(String filePath) {
+        try {
+            StringBuilder html = new StringBuilder();
+            html.append("<!DOCTYPE html>\n");
+            html.append("<html>\n");
+            html.append("<head>\n");
+            html.append("<title>Pinora Browser History</title>\n");
+            html.append("<meta charset=\"utf-8\" />\n");
+            html.append("<style>\n");
+            html.append("body { font-family: Arial, sans-serif; margin: 20px; }\n");
+            html.append("h1 { color: #333; }\n");
+            html.append("ul { list-style-type: none; padding: 0; }\n");
+            html.append("li { margin: 10px 0; padding: 8px; border-left: 4px solid #007bff; padding-left: 12px; }\n");
+            html.append("a { color: #007bff; text-decoration: none; }\n");
+            html.append("a:hover { text-decoration: underline; }\n");
+            html.append(".timestamp { color: #666; font-size: 0.9em; margin-left: 10px; }\n");
+            html.append("</style>\n");
+            html.append("</head>\n");
+            html.append("<body>\n");
+            html.append("<h1>Pinora Browser Browsing History</h1>\n");
+            html.append(String.format("<p>Total entries: %d</p>\n", history.size()));
+            html.append("<ul>\n");
+            
+            for (HistoryEntry entry : history) {
+                html.append(String.format("<li><a href=\"%s\">%s</a><span class=\"timestamp\">%s</span></li>\n",
+                    entry.url, entry.title != null ? entry.title : entry.url, entry.timestamp));
+            }
+            
+            html.append("</ul>\n");
+            html.append("</body>\n");
+            html.append("</html>\n");
+            
+            Files.write(Paths.get(filePath), html.toString().getBytes());
+            logger.info("History exported to {}", filePath);
+        } catch (Exception e) {
+            logger.error("Failed to export history to HTML", e);
+        }
+    }
+    
+    /**
+     * Get history statistics
+     */
+    public String getStatistics() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Total History Entries: %d\n", history.size()));
+        sb.append(String.format("Max History Items: %d\n", MAX_HISTORY_ITEMS));
+        
+        if (!history.isEmpty()) {
+            // Get unique domains
+            int uniqueUrls = (int) history.stream()
+                .map(e -> e.url)
+                .distinct()
+                .count();
+            sb.append(String.format("Unique URLs: %d\n", uniqueUrls));
+            
+            // Get most recent and oldest
+            LocalDateTime newest = history.get(0).timestamp;
+            LocalDateTime oldest = history.get(history.size() - 1).timestamp;
+            
+            sb.append(String.format("Most Recent: %s\n", newest));
+            sb.append(String.format("Oldest: %s\n", oldest));
+        }
+        
+        return sb.toString();
     }
     
     /**

@@ -35,6 +35,22 @@ public class BookmarkManager {
     }
     
     public void addBookmark(String title, String url) {
+        // Validate input
+        if (title == null || title.trim().isEmpty()) {
+            logger.warn("Cannot add bookmark with empty title");
+            return;
+        }
+        if (url == null || url.trim().isEmpty()) {
+            logger.warn("Cannot add bookmark with empty URL");
+            return;
+        }
+        
+        // Prevent duplicates
+        if (isBookmarked(url)) {
+            logger.debug("URL already bookmarked: {}", url);
+            return;
+        }
+        
         Bookmark bookmark = new Bookmark(title, url, LocalDateTime.now());
         bookmarks.add(bookmark);
         
@@ -45,6 +61,11 @@ public class BookmarkManager {
     }
     
     public void removeBookmark(String url) {
+        if (!isBookmarked(url)) {
+            logger.warn("Bookmark not found: {}", url);
+            return;
+        }
+        
         bookmarks.removeIf(b -> b.url.equals(url));
         
         // Save to disk
@@ -150,6 +171,120 @@ public class BookmarkManager {
         } catch (Exception e) {
             logger.error("Failed to load bookmarks", e);
         }
+    }
+    
+    /**
+     * Export bookmarks to HTML file
+     */
+    public void exportToHTML(String filePath) {
+        try {
+            StringBuilder html = new StringBuilder();
+            html.append("<!DOCTYPE html>\n");
+            html.append("<html>\n");
+            html.append("<head>\n");
+            html.append("<title>Pinora Browser Bookmarks</title>\n");
+            html.append("<meta charset=\"utf-8\" />\n");
+            html.append("</head>\n");
+            html.append("<body>\n");
+            html.append("<h1>Pinora Browser Bookmarks</h1>\n");
+            html.append("<ul>\n");
+            
+            for (Bookmark bookmark : bookmarks) {
+                html.append(String.format("<li><a href=\"%s\">%s</a> (Added: %s)</li>\n",
+                    bookmark.url, bookmark.title, bookmark.timestamp));
+            }
+            
+            html.append("</ul>\n");
+            html.append("</body>\n");
+            html.append("</html>\n");
+            
+            Files.write(Paths.get(filePath), html.toString().getBytes());
+            logger.info("Bookmarks exported to {}", filePath);
+        } catch (Exception e) {
+            logger.error("Failed to export bookmarks to HTML", e);
+        }
+    }
+    
+    /**
+     * Export bookmarks to JSON
+     */
+    public String exportToJSON() {
+        try {
+            JsonArray array = new JsonArray();
+            for (Bookmark bookmark : bookmarks) {
+                JsonObject obj = new JsonObject();
+                obj.addProperty("title", bookmark.title);
+                obj.addProperty("url", bookmark.url);
+                obj.addProperty("timestamp", bookmark.timestamp.format(FORMATTER));
+                array.add(obj);
+            }
+            return GSON.toJson(array);
+        } catch (Exception e) {
+            logger.error("Failed to export bookmarks to JSON", e);
+            return "[]";
+        }
+    }
+    
+    /**
+     * Import bookmarks from JSON
+     */
+    public void importFromJSON(String json) {
+        try {
+            JsonArray array = GSON.fromJson(json, JsonArray.class);
+            if (array != null) {
+                for (JsonElement element : array) {
+                    JsonObject obj = element.getAsJsonObject();
+                    String title = obj.get("title").getAsString();
+                    String url = obj.get("url").getAsString();
+                    
+                    // Don't add duplicates
+                    if (!isBookmarked(url)) {
+                        LocalDateTime timestamp = LocalDateTime.now();
+                        if (obj.has("timestamp")) {
+                            try {
+                                timestamp = LocalDateTime.parse(
+                                    obj.get("timestamp").getAsString(), FORMATTER);
+                            } catch (Exception ignored) {}
+                        }
+                        bookmarks.add(new Bookmark(title, url, timestamp));
+                    }
+                }
+                saveBookmarks();
+                logger.info("Bookmarks imported successfully");
+            }
+        } catch (Exception e) {
+            logger.error("Failed to import bookmarks from JSON", e);
+        }
+    }
+    
+    /**
+     * Get bookmark count
+     */
+    public int getBookmarkCount() {
+        return bookmarks.size();
+    }
+    
+    /**
+     * Get persistence statistics
+     */
+    public String getStatistics() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Total Bookmarks: %d\n", bookmarks.size()));
+        
+        if (!bookmarks.isEmpty()) {
+            LocalDateTime oldest = bookmarks.get(0).timestamp;
+            LocalDateTime newest = bookmarks.get(0).timestamp;
+            
+            for (Bookmark b : bookmarks) {
+                if (b.timestamp.isBefore(oldest)) oldest = b.timestamp;
+                if (b.timestamp.isAfter(newest)) newest = b.timestamp;
+            }
+            
+            sb.append(String.format("Oldest Bookmark: %s\n", oldest));
+            sb.append(String.format("Newest Bookmark: %s\n", newest));
+        }
+        
+        return sb.toString();
     }
     
     /**

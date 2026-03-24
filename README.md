@@ -17,20 +17,28 @@ A lightweight, minimal yet feature-rich web browser built with Java, designed fo
 
 ## Known Limitations
 
-### Bookmark Persistence
-- **Bookmarks are not saved to disk** - Bookmarks are lost when the application is restarted
-  - This is a planned feature for a future release
-  - Currently, all browser data (bookmarks, history) exists only in memory
+### Current Features
+- **✓ Bookmarks with Persistence**: Bookmarks are automatically saved to disk and restored on application startup
+  - File location: `~/.pinora/bookmarks.json`
+  - Features: Add, remove, search, import/export (JSON/HTML)
+  - Status: **FULLY IMPLEMENTED** ✓
+  
+- **✓ Browsing History with Persistence**: History is automatically tracked and saved to disk
+  - File location: `~/.pinora/history.json`
+  - Features: Search, date filtering, export, most-visited tracking (max 1000 entries)
+  - Status: **FULLY IMPLEMENTED** ✓
+  
+- **✓ Clear History Function**: "Clear History" menu item is fully functional
+  - Clears both in-memory history and disk storage
+  - Status: **FULLY IMPLEMENTED** ✓
 
-### History Menu
-- **"Clear History" menu item has no action** - The menu item exists but does not perform any function
-  - Functionality is planned for a future release
-  - History data is currently cleared automatically on application restart
-
-### Bookmarks/History UI
-- **No visible panel to view bookmarks or history** - There is no UI panel or sidebar to display and manage bookmarks or browsing history
-  - Menu items exist but lack a corresponding interface
-  - This feature is planned for a future release
+### Planned Features
+- **Bookmarks/History UI Panels**: Visual panels to view and manage bookmarks/history (in development)
+- **Tab Persistence**: Automatic restoration of open tabs on startup
+- **Cookie Management UI**: Visual interface for managing cookies
+- **Advanced Search Features**: Full-text history search with filters
+- **Sync Across Devices**: Cloud-based bookmark/history synchronization
+- **Custom Extensions**: WebExtensionAPI compatibility improvements
 
 ## Project Structure
 
